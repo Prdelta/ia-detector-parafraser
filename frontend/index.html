@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IAdección</title>
+  <meta name="description" content="Detector gratuito de escritura con IA para estudiantes">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <h1>IAdección</h1>
+      <p class="tag">Revisa tu trabajo antes de entregarlo. Gratis, sin registro y sin guardar tu texto.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="card" id="input-card">
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="pegar" role="tab">Pegar texto</button>
+        <button class="tab" data-tab="archivo" role="tab">Subir archivo</button>
+      </div>
+
+      <div class="panel" id="panel-pegar">
+        <textarea id="texto" placeholder="Pega aquí tu ensayo, capítulo o informe (mínimo 80 palabras, recomendado 250 o más)…"></textarea>
+        <div class="meta"><span id="contador">0 palabras</span></div>
+      </div>
+
+      <div class="panel hidden" id="panel-archivo">
+        <label class="drop" id="drop">
+          <input type="file" id="archivo" accept=".pdf,.docx,.txt,.md">
+          <span id="drop-text">Arrastra un PDF, DOCX o TXT aquí, o haz clic para elegirlo (máx. 10 MB)</span>
+        </label>
+      </div>
+
+      <button class="primary" id="analizar">Analizar</button>
+      <p class="error hidden" id="error"></p>
+    </section>
+
+    <section class="hidden" id="cargando">
+      <div class="spinner"></div>
+      <p>Analizando… puede tardar unos segundos.</p>
+    </section>
+
+    <section class="hidden" id="resultado">
+      <div class="card summary">
+        <div class="gauge" id="gauge">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle cx="60" cy="60" r="52" class="track"/>
+            <circle cx="60" cy="60" r="52" class="bar" id="gauge-bar"/>
+          </svg>
+          <div class="gauge-label"><strong id="porcentaje">0%</strong><span>probabilidad de IA</span></div>
+        </div>
+        <div class="summary-text">
+          <h2 id="veredicto"></h2>
+          <ul class="facts">
+            <li>Confianza: <strong id="confianza"></strong></li>
+            <li>Texto marcado como posible IA: <strong id="fraccion"></strong></li>
+            <li>Palabras analizadas: <strong id="palabras"></strong></li>
+          </ul>
+          <ul class="avisos" id="avisos"></ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Texto analizado</h3>
+        <div class="legend">
+          <span><i class="dot bajo"></i>Bajo</span>
+          <span><i class="dot medio"></i>Medio</span>
+          <span><i class="dot alto"></i>Alto</span>
+          <span class="hint">Pasa el cursor sobre una oración para ver su detalle.</span>
+        </div>
+        <div class="texto-marcado" id="texto-marcado"></div>
+      </div>
+
+      <div class="card" id="reescritura">
+        <h3>Párrafos para revisar</h3>
+        <p class="nota">Reescribe con tu propia voz los párrafos marcados y vuelve a analizar el texto completo.</p>
+        <div id="parrafos-marcados"></div>
+        <div class="acciones">
+          <button class="primary" id="reanalizar">Reanalizar con mis cambios</button>
+          <button class="secondary" id="copiar">Copiar texto con mis cambios</button>
+        </div>
+        <p class="error hidden" id="error-reescritura"></p>
+      </div>
+
+      <div class="card" id="motivos-card">
+        <h3>¿Por qué este resultado?</h3>
+        <ul id="motivos"></ul>
+        <details>
+          <summary>Datos técnicos</summary>
+          <pre id="tecnico"></pre>
+        </details>
+      </div>
+
+      <p class="legal" id="legal"></p>
+      <button class="secondary" id="otra">Analizar otro texto</button>
+    </section>
+  </main>
+
+  <footer class="wrap foot">
+    <p>Herramienta orientativa y de código abierto. Ningún detector de IA es infalible: úsala para revisar tu escritura, no como prueba.</p>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

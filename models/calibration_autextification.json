@@ -1,0 +1,12 @@
+{
+  "model_id": "Qwen/Qwen2.5-0.5B|Qwen/Qwen2.5-0.5B-Instruct",
+  "slope": -9.265434514709305,
+  "intercept": 8.338576935496002,
+  "threshold_low_fpr": 0.8077,
+  "metrics": {
+    "auroc": 0.781,
+    "tpr_at_1pct_fpr": 0.348,
+    "n": 2000
+  },
+  "data": "autextification_es_train.parquet"
+}
