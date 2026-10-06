@@ -8,7 +8,12 @@ _ABBREVIATIONS = {
     "sr", "sra", "srta", "dr", "dra", "lic", "ing", "prof", "etc", "pág", "págs",
     "p", "pp", "vol", "núm", "no", "cap", "ed", "eds", "fig", "figs", "cf", "vs",
     "ej", "aprox", "art", "inc", "et", "al", "op", "cit", "ibid", "ss", "ud", "uds",
+    # inglés
+    "mr", "mrs", "ms", "jr", "sr", "st", "e.g", "i.e", "approx", "dept", "univ", "ca",
 }
+
+_STOP_ES = set("de la que el en y a los se del las un por con no una su para es al lo como más pero sus le ya o".split())
+_STOP_EN = set("the of and to in is that for it with as was on are be by this from or an which have not".split())
 
 _SENTENCE_END = re.compile(r"[.!?…]+[\"'»”)\]]*(?=\s+|$)")
 
@@ -70,3 +75,11 @@ def _append(sentences, text, start, end, paragraph):
 
 def words(text: str) -> list[str]:
     return re.findall(r"[^\W\d_]+(?:[-'][^\W\d_]+)*", text, flags=re.UNICODE)
+
+
+def detect_language(text: str) -> str:
+    """'es' o 'en' según la proporción de palabras vacías de cada idioma."""
+    toks = [w.lower() for w in words(text)]
+    es = sum(t in _STOP_ES for t in toks)
+    en = sum(t in _STOP_EN for t in toks)
+    return "en" if en > es else "es"

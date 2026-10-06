@@ -15,6 +15,11 @@ estudiantes revisen sus trabajos antes de entregarlos. Prioriza el español.
 
 - La puntuación se calibra con datos etiquetados (`models/calibration.json`) para que el porcentaje sea interpretable.
 - Cada oración recibe su propia probabilidad usando los valores por token de una sola pasada del modelo.
+- **Párrafos para revisar:** cada párrafo marcado muestra por qué suena a IA (frases hechas,
+  conectores formulaicos, ritmo uniforme) y sugerencias concretas, con un editor para reescribirlo
+  y reanalizar el texto completo.
+- **Paráfrasis automática (opcional):** reescribe un párrafo con un modelo local. El resultado
+  sigue siendo texto de IA y la interfaz lo advierte; se puede desactivar con `IADECCION_PARAFRASEADOR=0`.
 - **Privacidad:** el texto solo existe en memoria durante el análisis; no se guarda en ningún sitio.
 
 ## Puesta en marcha
@@ -35,6 +40,7 @@ Variables de entorno opcionales:
 | `IADECCION_OBSERVER` | `Qwen/Qwen2.5-0.5B` | Modelo base |
 | `IADECCION_PERFORMER` | `Qwen/Qwen2.5-0.5B-Instruct` | Modelo instruct (mismo tokenizador) |
 | `IADECCION_BINOCULARS` | `1` | `0` = solo estilometría |
+| `IADECCION_PARAFRASEADOR` | `Qwen/Qwen2.5-1.5B-Instruct` | Modelo de paráfrasis; `0` la desactiva |
 | `IADECCION_MAX_TOKENS` | `512` | Tamaño de fragmento para textos largos |
 
 Si cambias de modelos, recalibra (ver abajo).
@@ -43,10 +49,12 @@ Si cambias de modelos, recalibra (ver abajo).
 
 - `POST /api/analizar` — `{"texto": "..."}`
 - `POST /api/analizar-archivo` — formulario con `archivo` (PDF, DOCX, TXT; máx. 10 MB)
+- `POST /api/parafrasear` — `{"texto": "párrafo"}` (máx. 400 palabras)
 - `GET /api/salud`
 
 La respuesta incluye `probabilidad_ia`, `veredicto`, `confianza`, `fraccion_texto_marcado`,
-las oraciones con su `nivel` (bajo/medio/alto), `motivos` y `avisos`.
+las oraciones con su `nivel` (bajo/medio/alto), los `parrafos` con sus `motivos` y `sugerencias`,
+y `avisos`.
 
 ## Investigación
 

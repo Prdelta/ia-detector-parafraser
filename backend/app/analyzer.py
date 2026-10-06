@@ -77,8 +77,10 @@ def analyze_text(raw_text: str) -> dict:
                 mask = (token_sentence >= lo) & (token_sentence <= hi)
             s_score = stats.score(mask)
             if s_score is not None:
+                # Solo señales locales: el estilo global del documento contaminaría
+                # los párrafos humanos de un texto mixto.
                 hit_bonus = 0.05 * min(len(style.sentence_hits[i]), 2)
-                sentence_probs[i] = min(1.0, W_BINOCULARS * calib.probability(s_score) + W_STYLE * style.score + hit_bonus)
+                sentence_probs[i] = min(1.0, calib.probability(s_score) + hit_bonus)
     else:
         doc_prob = style.score
         warnings.append("Solo se usó el análisis de estilo (el modelo principal no está disponible). Confianza reducida.")
