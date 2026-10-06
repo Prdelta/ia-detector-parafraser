@@ -40,6 +40,7 @@ Variables de entorno opcionales:
 | `IADECCION_OBSERVER` | `Qwen/Qwen2.5-0.5B` | Modelo base |
 | `IADECCION_PERFORMER` | `Qwen/Qwen2.5-0.5B-Instruct` | Modelo instruct (mismo tokenizador) |
 | `IADECCION_BINOCULARS` | `1` | `0` = solo estilometría |
+| `IADECCION_CLASIFICADOR` | `1` | `0` desactiva el clasificador supervisado (`models/clasificador/`) |
 | `IADECCION_PARAFRASEADOR` | `Qwen/Qwen2.5-1.5B-Instruct` | Modelo de paráfrasis; `0` la desactiva |
 | `IADECCION_MAX_TOKENS` | `512` | Tamaño de fragmento para textos largos |
 
@@ -132,6 +133,20 @@ Conclusiones:
   el 29 % de los textos redactados, aunque el AUROC sea 0.96. Recalibrar con este corpus
   subiría la detección a costa de más falsos positivos (decisión de política, pendiente).
 - Falta medir los modelos comerciales (GPT, Claude, Gemini).
+
+### Clasificador supervisado y meta-clasificador
+
+```bash
+# XLM-RoBERTa ajustado con AuTexTification + corpus propio (≈2 h en una GPU de 6 GB)
+python research/train_classifier.py
+# Pesos aprendidos para combinar Binoculars, estilometría y clasificador
+python research/train_meta.py
+```
+
+El meta-clasificador se entrena con textos que el clasificador no vio (test del corpus propio y de
+AuTexTification) y se evalúa con validación cruzada agrupada por tema. Si `models/clasificador/`
+existe pero falta `models/meta.json`, la aplicación usa pesos fijos (50 % Binoculars, 30 %
+clasificador, 20 % estilo). La puntuación por oración sigue siendo solo de Binoculars.
 
 ## Pruebas
 

@@ -3,13 +3,14 @@ import os
 
 os.environ["IADECCION_BINOCULARS"] = "0"  # pruebas rápidas sin descargar modelos
 os.environ["IADECCION_PARAFRASEADOR"] = "0"
+os.environ["IADECCION_CLASIFICADOR"] = "0"
 
 import docx  # noqa: E402
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 from backend.app.analyzer import analyze_text  # noqa: E402
-from backend.app.detectors import stylometry  # noqa: E402
+from backend.app.detectors import meta, stylometry  # noqa: E402
 from backend.app.extract import UnsupportedFile, extract_text  # noqa: E402
 from backend.app.main import app  # noqa: E402
 from backend.app.rewrite import guidance  # noqa: E402
@@ -112,3 +113,11 @@ def test_parafrasear_desactivado():
     with TestClient(app) as client:
         r = client.post("/api/parafrasear", json={"texto": "Un párrafo cualquiera con varias palabras."})
         assert r.status_code == 503
+
+
+def test_meta_combina_senales():
+    m = meta.Meta(coef=[-1.0, 0.5, 1.0], intercept=0.0, mean=[0.9, 0.5, 0.0], std=[0.1, 0.2, 2.0])
+    ia = m.probability(meta.features(0.7, 0.8, 0.99))
+    humano = m.probability(meta.features(1.05, 0.2, 0.01))
+    assert ia > 0.9 and humano < 0.1
+    assert m.probability(meta.features(0.9, 0.5, 0.5)) == 0.5

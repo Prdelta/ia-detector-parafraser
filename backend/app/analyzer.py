@@ -3,12 +3,14 @@
 import numpy as np
 
 from . import config, rewrite
-from .detectors import binoculars, calibration, stylometry
+from .detectors import binoculars, calibration, classifier, meta, stylometry
 from .segment import normalize, split_sentences, words
 
-# Peso de cada señal cuando Binoculars está disponible.
+# Pesos fijos cuando no hay meta-clasificador entrenado (models/meta.json).
 W_BINOCULARS = 0.8
 W_STYLE = 0.2
+# Con clasificador supervisado: Binoculars, clasificador, estilo.
+W3_BINOCULARS, W3_CLASSIFIER, W3_STYLE = 0.5, 0.3, 0.2
 
 # Una oración con pocos tokens es ruidosa: se amplía con sus vecinas.
 MIN_SENTENCE_TOKENS = 30
@@ -43,10 +45,18 @@ def analyze_text(raw_text: str) -> dict:
 
     style = stylometry.analyze(text, sentences)
     detector = binoculars.get_detector()
+    clf = classifier.get_classifier()
 
     sentence_probs = np.full(len(sentences), style.score)
     signals = {"estilometria": {"probabilidad": round(style.score, 3), "rasgos": style.features}}
     reasons = list(style.reasons)
+
+    clf_prob = None
+    if clf is not None:
+        clf_prob = clf.probability(text)
+        signals["clasificador"] = {"probabilidad": round(clf_prob, 3), "modelo": clf.model_id}
+        if clf_prob >= 0.9:
+            reasons.insert(0, "El clasificador entrenado reconoce rasgos de texto redactado o parafraseado con IA.")
 
     if detector is not None:
         calib = calibration.load(detector.model_id)
@@ -55,7 +65,14 @@ def analyze_text(raw_text: str) -> dict:
         stats = detector.token_stats(text)
         doc_score = stats.score()
         bino_prob = calib.probability(doc_score)
-        doc_prob = W_BINOCULARS * bino_prob + W_STYLE * style.score
+        if clf_prob is None:
+            doc_prob = W_BINOCULARS * bino_prob + W_STYLE * style.score
+        else:
+            combiner = meta.load(detector.model_id, clf.model_id)
+            if combiner is not None:
+                doc_prob = combiner.probability(meta.features(doc_score, style.score, clf_prob))
+            else:
+                doc_prob = W3_BINOCULARS * bino_prob + W3_CLASSIFIER * clf_prob + W3_STYLE * style.score
         signals["binoculars"] = {
             "puntuacion": round(doc_score, 4),
             "umbral_bajo_fpr": calib.threshold_low_fpr,
@@ -81,6 +98,8 @@ def analyze_text(raw_text: str) -> dict:
                 # los párrafos humanos de un texto mixto.
                 hit_bonus = 0.05 * min(len(style.sentence_hits[i]), 2)
                 sentence_probs[i] = min(1.0, calib.probability(s_score) + hit_bonus)
+    elif clf_prob is not None:
+        doc_prob = W_BINOCULARS * clf_prob + W_STYLE * style.score
     else:
         doc_prob = style.score
         warnings.append("Solo se usó el análisis de estilo (el modelo principal no está disponible). Confianza reducida.")
@@ -109,7 +128,7 @@ def analyze_text(raw_text: str) -> dict:
         "parafrasis_disponible": bool(config.PARAPHRASE_MODEL),
         "probabilidad_ia": round(float(doc_prob), 3),
         "veredicto": _verdict(doc_prob),
-        "confianza": _confidence(n_words, detector is not None, doc_prob, style.score),
+        "confianza": _confidence(n_words, detector is not None or clf is not None, doc_prob, style.score),
         "fraccion_texto_marcado": round(ai_fraction, 3),
         "palabras": n_words,
         "oraciones": [

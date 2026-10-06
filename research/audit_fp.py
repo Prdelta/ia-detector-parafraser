@@ -59,6 +59,9 @@ def build_groups(n: int, seed: int) -> pd.DataFrame:
         parts.append(g.sample(min(n, len(g)), random_state=seed).assign(grupo=grupo)[["text", "grupo"]])
 
     human = pd.read_json(ROOT / "data" / "corpus" / "human.jsonl", lines=True)
+    # Solo textos que el clasificador supervisado no vio al entrenar (conjunto test del corpus).
+    test_ids = set(pd.read_parquet(ROOT / "data" / "corpus" / "test.parquet", columns=["id"]).id)
+    human = human[human.id.isin(test_ids)]
     acad = human[human.domain == "academico"]
     tech = acad[acad.field.isin(TECH_FIELDS)]
     hum = acad[~acad.field.isin(TECH_FIELDS)]
