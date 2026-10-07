@@ -30,6 +30,9 @@ if PARAPHRASE_MODEL == "0":
     PARAPHRASE_MODEL = ""
 MAX_PARAPHRASE_WORDS = 400
 
+# Búsqueda opcional de coincidencias en OpenAlex y Wikipedia (envía palabras clave); "0" la desactiva.
+ENABLE_SIMILARITY = os.getenv("IADECCION_SIMILITUD", "1") == "1"
+
 # Tokens por fragmento al evaluar textos largos.
 MAX_TOKENS_PER_CHUNK = int(os.getenv("IADECCION_MAX_TOKENS", "512"))
 
@@ -40,3 +43,8 @@ MAX_CHARS = 60_000
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
 CALIBRATION_FILE = MODELS_DIR / "calibration.json"
+
+
+def calibration_file(lang: str = "es") -> Path:
+    """Calibración de Binoculars por idioma: calibration.json (es), calibration_en.json (en)."""
+    return CALIBRATION_FILE if lang == "es" else MODELS_DIR / f"calibration_{lang}.json"

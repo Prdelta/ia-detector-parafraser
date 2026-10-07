@@ -87,6 +87,8 @@ def main():
     parser.add_argument("--folds", type=int, default=5)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--recompute", action="store_true", help="ignorar la caché de rasgos")
+    parser.add_argument("--fpr-objetivo", type=float, default=0.01,
+                        help="FPR máximo con el umbral 0.65 (0 = sin ajustar el intercepto)")
     args = parser.parse_args()
 
     det_id = f"{config.OBSERVER_MODEL}|{config.PERFORMER_MODEL}"
@@ -115,6 +117,16 @@ def main():
         m = fit(X[tr], y[tr])
         oof["meta"][te] = [m.probability(list(x)) for x in X[te]]
 
+    # La regresión se entrena con clases equilibradas, así que 0.65 no implica pocos falsos positivos.
+    # Se desplaza el intercepto para que 0.65 ("probablemente IA") marque como mucho el FPR objetivo
+    # de los textos humanos fuera de muestra.
+    shift = 0.0
+    if args.fpr_objetivo > 0:
+        q = np.quantile(oof["meta"][y == 0], 1 - args.fpr_objetivo)
+        shift = meta.logit(0.65) - meta.logit(q)
+        p = np.clip(oof["meta"], 1e-6, 1 - 1e-6)
+        oof["meta ajustado"] = 1 / (1 + np.exp(-(np.log(p / (1 - p)) + shift)))
+
     print(f"\n{'método':<14}{'subconjunto':<22}{'n':>6}{'AUROC':>8}{'TPR@1%':>8}{'FPR≥0.65':>10}{'TPR≥0.65':>10}")
     subsets = {"todo": np.ones(len(feats), bool)}
     for origen in feats.origen.unique():
@@ -131,6 +143,8 @@ def main():
                   f"{(pp[yy == 0] >= 0.65).mean():>10.3%}{(pp[yy == 1] >= 0.65).mean():>10.1%}")
 
     final = fit(X, y)
+    final.intercept += shift
+    final_oof = oof["meta ajustado"] if shift else oof["meta"]
     out = {
         "features": list(meta.FEATURES),
         "binoculars": det_id,
@@ -140,11 +154,13 @@ def main():
         "mean": final.mean,
         "std": final.std,
         "metricas_cv": {
-            "auroc": round(roc_auc_score(y, oof["meta"]), 4),
-            "tpr_at_1pct_fpr": round(tpr_at_fpr(y, oof["meta"]), 4),
-            "fpr_at_065": round(float((oof["meta"][y == 0] >= 0.65).mean()), 4),
+            "auroc": round(roc_auc_score(y, final_oof), 4),
+            "tpr_at_1pct_fpr": round(tpr_at_fpr(y, final_oof), 4),
+            "fpr_at_065": round(float((final_oof[y == 0] >= 0.65).mean()), 4),
+            "tpr_at_065": round(float((final_oof[y == 1] >= 0.65).mean()), 4),
             "n": int(len(y)),
         },
+        "ajuste_intercepto": round(float(shift), 4),
     }
     config.META_FILE.write_text(json.dumps(out, indent=2), encoding="utf-8")
     print(f"\nCoeficientes (estandarizados): {dict(zip(meta.FEATURES, np.round(final.coef, 3)))}")

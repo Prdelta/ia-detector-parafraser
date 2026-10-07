@@ -21,6 +21,15 @@ estudiantes revisen sus trabajos antes de entregarlos. Prioriza el español.
 - **Paráfrasis automática (opcional):** reescribe un párrafo con un modelo local. El resultado
   sigue siendo texto de IA y la interfaz lo advierte; se puede desactivar con `IADECCION_PARAFRASEADOR=0`.
 - **Privacidad:** el texto solo existe en memoria durante el análisis; no se guarda en ningún sitio.
+- **Informe PDF:** el botón "Descargar informe (PDF)" abre la vista de impresión del resultado (fecha,
+  veredicto, texto resaltado, párrafos para revisar y aviso legal) para guardarla como PDF. Se genera en el
+  navegador, así que también funciona en el modo local.
+- **Coincidencias con fuentes abiertas (opcional):** compara el texto con resúmenes académicos de
+  [OpenAlex](https://openalex.org) y artículos de Wikipedia mediante 5-gramas de palabras. A esos servicios
+  solo se envían unas palabras clave de cada párrafo, nunca el texto. No es un detector de plagio completo.
+- **Inglés (experimental):** se detecta el idioma y se usan expresiones y conectores típicos de los LLM en
+  inglés y una calibración propia de Binoculars (`models/calibration_en.json`). El clasificador supervisado
+  y el meta-clasificador solo se usan en español.
 - **Analizar en mi navegador (opcional):** Binoculars y estilometría se ejecutan en el propio equipo con
   [transformers.js](https://huggingface.co/docs/transformers.js) (WebGPU, o WebAssembly si no hay), así que el
   texto no sale del navegador. La primera vez descarga los modelos cuantizados (~1 GB, q4f16) y quedan en caché.
@@ -47,6 +56,8 @@ Variables de entorno opcionales:
 | `IADECCION_CLASIFICADOR` | `1` | `0` desactiva el clasificador supervisado (`models/clasificador/`) |
 | `IADECCION_PARAFRASEADOR` | `Qwen/Qwen2.5-1.5B-Instruct` | Modelo de paráfrasis; `0` la desactiva |
 | `IADECCION_MAX_TOKENS` | `512` | Tamaño de fragmento para textos largos |
+| `IADECCION_SIMILITUD` | `1` | `0` desactiva la búsqueda en OpenAlex y Wikipedia |
+| `IADECCION_USER_AGENT` | URL del repositorio | User-Agent de esas consultas (Wikipedia exige un contacto) |
 
 Si cambias de modelos, recalibra (ver abajo).
 
@@ -55,6 +66,7 @@ Si cambias de modelos, recalibra (ver abajo).
 - `POST /api/analizar` — `{"texto": "..."}`
 - `POST /api/analizar-archivo` — formulario con `archivo` (PDF, DOCX, TXT; máx. 10 MB)
 - `POST /api/parafrasear` — `{"texto": "párrafo"}` (máx. 400 palabras)
+- `POST /api/similitud` — `{"texto": "..."}`: fuentes coincidentes, fracción del texto y oraciones
 - `GET /api/salud`
 
 La respuesta incluye `probabilidad_ia`, `veredicto`, `confianza`, `fraccion_texto_marcado`,
@@ -152,6 +164,31 @@ AuTexTification) y se evalúa con validación cruzada agrupada por tema. Si `mod
 existe pero falta `models/meta.json`, la aplicación usa pesos fijos (50 % Binoculars, 30 %
 clasificador, 20 % estilo). La puntuación por oración sigue siendo solo de Binoculars.
 
+La regresión se entrena con clases equilibradas, así que después se desplaza su intercepto para que
+el umbral de la aplicación (0.65, "probablemente IA") no marque más del 1 % de los textos humanos
+fuera de muestra (`--fpr-objetivo 0.01`; `0` lo desactiva).
+
+#### Resultados (octubre 2026)
+
+Clasificador XLM-R (época 2): AUROC 0.944 en el test del corpus propio y 0.848 en AuTexTification test.
+Ordena bien, pero sus probabilidades están infladas (con p≥0.65 marca al 95 % de los humanos de
+AuTexTification), por eso no se usa solo.
+
+Meta-clasificador, validación cruzada agrupada por tema (2 039 textos: test del corpus propio +
+1 500 de AuTexTification test). Porcentajes con el umbral 0.65:
+
+| Método | AUROC | TPR @ 1 % FPR | Humanos marcados | IA marcada |
+|---|---|---|---|---|
+| Binoculars | 0.868 | 0.442 | 1.4 % | 47 % |
+| Pesos fijos | 0.877 | 0.394 | 6.3 % | 60 % |
+| Meta sin ajustar | 0.911 | 0.472 | 10.2 % | 73 % |
+| **Meta ajustado (en uso)** | **0.911** | **0.472** | **1.1 %** | **47 %** |
+
+En el corpus propio el meta ajustado marca al 0.2 % de los humanos y detecta el 73 % de lo
+redactado y el 85 % de lo "humanizado". La paráfrasis con IA sigue sin detectarse (AUROC 0.66).
+Los coeficientes estandarizados (clasificador 3.1, Binoculars −1.5, estilo 0.09) indican que la
+estilometría apenas aporta una vez que están las otras dos señales.
+
 ### Modo navegador
 
 El código del navegador está en `frontend/local/`: `core.js` replica la segmentación, la estilometría y el
@@ -163,6 +200,43 @@ cd research/browser && npm install && cd ../..
 python research/calibrate_local.py      # genera frontend/local/calibration.json (Node, CPU, ~1 h)
 ```
 
+Comparación con el servidor en el test del corpus propio (correlación de puntuaciones 0.925):
+
+| Tarea de la IA | AUROC navegador | AUROC servidor | TPR @ 1 % FPR navegador | TPR @ 1 % FPR servidor |
+|---|---|---|---|---|
+| Todo | 0.845 | 0.879 | 0.537 | 0.701 |
+| Redactar | 0.940 | 0.980 | 0.700 | 0.850 |
+| Humanizar | 0.981 | 0.999 | 0.615 | 1.000 |
+| Parafrasear | 0.448 | 0.478 | 0.000 | 0.000 |
+
+La cuantización q4f16 cuesta algo de precisión; el modo navegador es una alternativa por privacidad,
+no un sustituto del servidor.
+
+### Auditoría de falsos positivos
+
+```bash
+python research/audit_fp.py      # ~20 min en GPU; guarda models/auditoria_fp.json
+```
+
+Todos los textos son humanos y anteriores a ChatGPT; se usa el análisis completo de la aplicación
+(meta-clasificador ajustado). "Marcado" = p≥0.65; "incierto o más" = p≥0.35.
+
+| Grupo | n | Marcado como IA | Incierto o más | Prob. media |
+|---|---|---|---|---|
+| Hablante de herencia (COWS-L2H) | 200 | 0.0 % | 2.0 % | 0.12 |
+| Aprendiz de español L2 (COWS-L2H) | 200 | 0.0 % | 10.5 % | 0.15 |
+| Académico técnico | 185 | 0.0 % | 0.5 % | 0.03 |
+| Académico humanidades/sociales | 179 | 0.6 % | 3.4 % | 0.04 |
+| Wikipedia | 108 | 0.0 % | 0.0 % | 0.05 |
+| Texto corto (120 palabras) | 200 | 0.5 % | 7.0 % | 0.08 |
+
+- Ningún grupo supera el 1 % de acusaciones con el umbral de la aplicación.
+- Los aprendices de español L2 caen 3 veces más en la zona "incierta" que los nativos académicos.
+  La interfaz debe seguir dejando claro que "incierto" no es una acusación.
+- Los textos de COWS-L2H no se usaron en ningún entrenamiento. Los académicos y Wikipedia salen del
+  test del corpus propio, con el que se ajustó el meta-clasificador, así que sus cifras pueden ser
+  algo optimistas.
+
 ## Pruebas
 
 ```bash
@@ -173,7 +247,12 @@ python -m pytest tests -q
 
 - [x] MVP: Binoculars + estilometría, resaltado por oración, PDF/DOCX, interfaz web
 - [ ] Corpus propio con textos de modelos actuales (GPT, Claude, Gemini, Llama) y textos humanizados
-- [ ] Clasificador supervisado (XLM-RoBERTa) y meta-clasificador entrenado en lugar de pesos fijos
-- [ ] Auditoría de falsos positivos por grupo (hablantes no nativos, textos técnicos)
-- [ ] Inferencia en el navegador (transformers.js) para coste cero y privacidad total
-- [ ] Inglés, informe PDF descargable, módulo de similitud con fuentes abiertas
+  (hecho con modelos abiertos; faltan los comerciales)
+- [x] Clasificador supervisado (XLM-RoBERTa) y meta-clasificador entrenado en lugar de pesos fijos
+- [x] Auditoría de falsos positivos por grupo (hablantes no nativos, textos técnicos)
+- [x] Inferencia en el navegador (transformers.js) para coste cero y privacidad total
+- [x] Informe PDF descargable
+- [x] Módulo de similitud con fuentes abiertas (OpenAlex y Wikipedia)
+- [ ] Inglés: detección de idioma, estilometría y calibración propias (hecho, experimental); falta un
+  corpus propio en inglés y un clasificador multilingüe
+- [ ] Paráfrasis: más ejemplos de paráfrasis en el entrenamiento (`research/pipeline_parafrasis.sh`)

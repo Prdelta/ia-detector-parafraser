@@ -35,6 +35,19 @@ CORPUS = Path(__file__).resolve().parents[2] / "data" / "corpus"
 MIN_WORDS = 100
 TASK_WEIGHTS = {"redactar": 0.6, "parafrasear": 0.2, "humanizar": 0.2}
 
+# Variantes de la petición de paráfrasis: así se parecen más a cómo la usa un estudiante.
+PARAPHRASE_PROMPTS = [
+    "Reescribe en castellano el siguiente texto con tus propias palabras, manteniendo todas las ideas "
+    "y una extensión similar (unas {words} palabras). Responde solo con el texto reescrito.",
+    "Parafrasea el siguiente texto para que no se note que está copiado: cambia el vocabulario y la "
+    "estructura de las oraciones pero conserva el contenido (unas {words} palabras). Responde solo con el texto.",
+    "Mejora la redacción del siguiente texto para entregarlo como trabajo universitario. Puedes reformular "
+    "libremente, pero mantén las ideas y una extensión parecida (unas {words} palabras). Responde solo con el texto.",
+    "Reescribe el siguiente texto con otras palabras de forma que suene natural y escrito por una persona, "
+    "no por una IA: varía la longitud de las oraciones y evita frases hechas (unas {words} palabras). "
+    "Responde solo con el texto.",
+]
+
 GENRES_ACADEMIC = [
     "el resumen (abstract) de un artículo científico",
     "la introducción de un trabajo de investigación universitario",
@@ -169,11 +182,16 @@ def main():
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--save-every", type=int, default=32)
+    parser.add_argument("--tareas", nargs="+", choices=list(TASK_WEIGHTS),
+                        help="generar solo estas tareas (se guardan en un archivo aparte)")
     args = parser.parse_args()
 
     human = [json.loads(l) for l in (CORPUS / "human.jsonl").open(encoding="utf-8")]
     human = [h for h in human if h["domain"] == args.domain and is_spanish(h["text"])]
     slug = re.sub(r"[^a-zA-Z0-9.-]+", "_", args.model.split("/")[-1])
+    weights = {t: w for t, w in TASK_WEIGHTS.items() if not args.tareas or t in args.tareas}
+    if args.tareas:
+        slug += "__" + "-".join(sorted(weights))
     out_path = CORPUS / "ai" / f"{slug}.jsonl"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     rejected_path = CORPUS / "rechazados.jsonl"
@@ -184,7 +202,7 @@ def main():
     chosen = rng.sample(human, min(args.n, len(human)))
     jobs = []
     for item in chosen:
-        task = rng.choices(list(TASK_WEIGHTS), weights=list(TASK_WEIGHTS.values()))[0]
+        task = rng.choices(list(weights), weights=list(weights.values()))[0]
         prompt = build_prompt(item, task, rng)
         if item["id"] not in done:
             jobs.append((item, task, prompt))

@@ -11,7 +11,7 @@ import sys
 import threading
 
 from . import config
-from .detectors.stylometry import CONNECTOR_START
+from .detectors.stylometry import LEXICON
 from .segment import Sentence, words
 
 log = logging.getLogger(__name__)
@@ -22,7 +22,8 @@ PARAPHRASE_NOTICE = (
 )
 
 
-def guidance(sentences: list[Sentence], phrase_hits: list[list[str]], probability: float) -> dict:
+def guidance(sentences: list[Sentence], phrase_hits: list[list[str]], probability: float,
+             lang: str = "es") -> dict:
     """Motivos y sugerencias para un párrafo, a partir de sus oraciones."""
     reasons, suggestions = [], []
     phrases = sorted({h.lower() for hits in phrase_hits for h in hits})
@@ -30,7 +31,8 @@ def guidance(sentences: list[Sentence], phrase_hits: list[list[str]], probabilit
         reasons.append("Frases hechas típicas de IA: " + ", ".join(f"«{p}»" for p in phrases[:6]) + ".")
         suggestions.append("Sustituye las frases hechas por afirmaciones concretas: ¿qué dato, ejemplo o autor respalda la idea?")
 
-    connectors = [m.group(0) for s in sentences if (m := CONNECTOR_START.match(s.text))]
+    connector_start = LEXICON[lang][1]
+    connectors = [m.group(0) for s in sentences if (m := connector_start.match(s.text))]
     if len(connectors) >= 2:
         reasons.append(f"{len(connectors)} oraciones empiezan con conectores formulaicos ({', '.join(connectors[:4])}).")
         suggestions.append("Quita conectores de relleno o reordena las ideas para que se enlacen solas.")

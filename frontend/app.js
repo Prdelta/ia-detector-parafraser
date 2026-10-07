@@ -41,11 +41,15 @@ const local = () => $("modo-local").checked;
 try {
   $("modo-local").checked = localStorage.getItem("iadeccion-local") === "1";
 } catch {}
+// La búsqueda de fuentes se hace en el servidor: no está disponible en el modo local.
+const actualizarOpciones = () => $("similitud-opcion").classList.toggle("hidden", local());
 $("modo-local").addEventListener("change", () => {
   try {
     localStorage.setItem("iadeccion-local", local() ? "1" : "0");
   } catch {}
+  actualizarOpciones();
 });
+actualizarOpciones();
 
 function analizarLocal(texto) {
   worker ??= new Worker("/static/local/worker.js", { type: "module" });
@@ -75,7 +79,11 @@ async function analizarServidor(texto) {
   return data;
 }
 
-const analizarTexto = (texto) => (local() ? analizarLocal(texto) : analizarServidor(texto));
+let analisisLocal = false;
+const analizarTexto = (texto) => {
+  analisisLocal = local();
+  return analisisLocal ? analizarLocal(texto) : analizarServidor(texto);
+};
 
 $("analizar").addEventListener("click", async () => {
   mostrarError("");
@@ -101,6 +109,7 @@ $("analizar").addEventListener("click", async () => {
       const res = await fetch("/api/analizar-archivo", req);
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Error al analizar.");
+      analisisLocal = false;
       pintar(data);
     }
   } catch (err) {
@@ -109,6 +118,22 @@ $("analizar").addEventListener("click", async () => {
     $("analizar").disabled = false;
     $("cargando").classList.add("hidden");
   }
+});
+
+// El informe es la vista de impresión del resultado: el navegador lo guarda como PDF sin que el
+// texto salga del equipo (funciona igual en el modo local).
+$("informe").addEventListener("click", () => {
+  const ahora = new Date();
+  const datos = [
+    `Generado el ${ahora.toLocaleString("es")}`,
+    ultimo.archivo ? `Archivo: ${ultimo.archivo}` : null,
+    analisisLocal ? "Análisis en el navegador (Binoculars y estilometría)" : "Análisis en el servidor",
+  ];
+  $("informe-datos").textContent = datos.filter(Boolean).join(" · ");
+  const titulo = document.title;
+  document.title = `Informe IAdeccion ${ahora.toISOString().slice(0, 10)}`;  // nombre del PDF
+  window.print();
+  document.title = titulo;
 });
 
 $("otra").addEventListener("click", () => {
@@ -250,6 +275,7 @@ function pintar(d) {
   $("confianza").textContent = d.confianza;
   $("fraccion").textContent = pct(d.fraccion_texto_marcado);
   $("palabras").textContent = d.palabras.toLocaleString("es");
+  $("idioma").textContent = d.idioma === "en" ? "inglés (experimental)" : "español";
   $("avisos").innerHTML = d.avisos.map((a) => `<li>${escapar(a)}</li>`).join("");
 
   // Reconstruir párrafos con las oraciones resaltadas.
@@ -263,7 +289,41 @@ function pintar(d) {
 
   const motivos = d.motivos.length ? d.motivos : ["No se encontraron señales destacadas de IA."];
   $("motivos").innerHTML = motivos.map((m) => `<li>${escapar(m)}</li>`).join("");
+  buscarFuentes(d);
   $("tecnico").textContent = JSON.stringify(d.senales, null, 2);
   $("legal").textContent = d.aviso_legal;
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// ---------- coincidencias con fuentes abiertas ----------
+
+async function buscarFuentes(d) {
+  const activa = $("buscar-fuentes").checked && !analisisLocal;
+  $("similitud-card").classList.toggle("hidden", !activa);
+  if (!activa) return;
+  const caja = $("similitud");
+  caja.innerHTML = "<p class='nota'>Buscando en OpenAlex y Wikipedia…</p>";
+  try {
+    const res = await fetch("/api/similitud", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texto: d.parrafos.map((p) => p.texto).join("\n\n") }),
+    });
+    const r = await res.json();
+    if (!res.ok) throw new Error(r.detail || "No se pudo completar la búsqueda.");
+    if (d !== ultimo) return;  // llegó tarde: ya se está mostrando otro análisis
+    caja.innerHTML = r.fuentes.length
+      ? `<p><strong>${pct(r.fraccion_coincidente)}</strong> del texto coincide con alguna de estas fuentes:</p>
+         <ul class="fuentes">${r.fuentes
+           .map((f) => `<li><a href="${escapar(f.url)}" target="_blank" rel="noopener">${escapar(f.titulo)}</a>
+                        <span class="nota">${f.tipo} · ${pct(f.fraccion)} del texto</span></li>`)
+           .join("")}</ul>
+         <details><summary>Oraciones que coinciden (${r.oraciones.length})</summary>
+           <ul>${r.oraciones.map((o) => `<li>${escapar(o.texto)}</li>`).join("")}</ul></details>
+         <p class="nota">${escapar(r.aviso)}</p>`
+      : `<p>No se encontraron coincidencias en ${r.fuentes_revisadas} fuentes revisadas.</p>
+         <p class="nota">${escapar(r.aviso)}</p>`;
+  } catch (err) {
+    caja.innerHTML = `<p class="error">${escapar(err.message)}</p>`;
+  }
 }

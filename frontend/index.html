@@ -40,6 +40,12 @@
         los modelos (~1 GB) y quedan guardados. Solo con texto pegado.</span>
       </label>
 
+      <label class="local" id="similitud-opcion">
+        <input type="checkbox" id="buscar-fuentes">
+        <span><strong>Buscar coincidencias en fuentes abiertas.</strong> Compara tu texto con resúmenes académicos
+        (OpenAlex) y Wikipedia. Solo se envían a esos servicios unas palabras clave de cada párrafo, no el texto.</span>
+      </label>
+
       <button class="primary" id="analizar">Analizar</button>
       <p class="error hidden" id="error"></p>
     </section>
@@ -50,6 +56,10 @@
     </section>
 
     <section class="hidden" id="resultado">
+      <div class="informe-cabecera print-only">
+        <h2>Informe de IAdección</h2>
+        <p id="informe-datos"></p>
+      </div>
       <div class="card summary">
         <div class="gauge" id="gauge">
           <svg viewBox="0 0 120 120" aria-hidden="true">
@@ -64,6 +74,7 @@
             <li>Confianza: <strong id="confianza"></strong></li>
             <li>Texto marcado como posible IA: <strong id="fraccion"></strong></li>
             <li>Palabras analizadas: <strong id="palabras"></strong></li>
+            <li>Idioma: <strong id="idioma"></strong></li>
           </ul>
           <ul class="avisos" id="avisos"></ul>
         </div>
@@ -91,6 +102,11 @@
         <p class="error hidden" id="error-reescritura"></p>
       </div>
 
+      <div class="card hidden" id="similitud-card">
+        <h3>Coincidencias con fuentes abiertas</h3>
+        <div id="similitud"></div>
+      </div>
+
       <div class="card" id="motivos-card">
         <h3>¿Por qué este resultado?</h3>
         <ul id="motivos"></ul>
@@ -101,7 +117,10 @@
       </div>
 
       <p class="legal" id="legal"></p>
-      <button class="secondary" id="otra">Analizar otro texto</button>
+      <div class="acciones no-print">
+        <button class="primary" id="informe">Descargar informe (PDF)</button>
+        <button class="secondary" id="otra">Analizar otro texto</button>
+      </div>
     </section>
   </main>
 

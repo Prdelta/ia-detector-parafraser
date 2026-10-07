@@ -32,6 +32,20 @@ export function normalize(text) {
 
 export const words = (text) => text.match(WORD) || [];
 
+const STOP_ES = new Set("de la que el en y a los se del las un por con no una su para es al lo como más pero sus le ya o".split(" "));
+const STOP_EN = new Set("the of and to in is that for it with as was on are be by this from or an which have not".split(" "));
+
+/** 'es' o 'en' según la proporción de palabras vacías de cada idioma (segment.detect_language). */
+export function detectLanguage(text) {
+  let es = 0, en = 0;
+  for (const w of words(text)) {
+    const t = w.toLowerCase();
+    if (STOP_ES.has(t)) es += 1;
+    if (STOP_EN.has(t)) en += 1;
+  }
+  return en > es ? "en" : "es";
+}
+
 function* paragraphSpans(text) {
   let start = 0;
   for (const m of text.matchAll(/\n\s*\n/g)) {
@@ -110,6 +124,42 @@ const CONNECTOR_START = new RegExp(
   "iu",
 );
 
+// Inglés (experimental), como AI_PHRASES_EN y CONNECTOR_START_EN de stylometry.py.
+const AI_PHRASES_EN = [
+  "it is (?:important|worth|crucial|essential|vital) to (?:note|mention|consider|remember|highlight|recognize)",
+  "it is worth noting",
+  "(?:plays?|playing) an? (?:crucial|pivotal|vital|key|significant|central|essential) role",
+  "in (?:today[’']s|the modern|the digital|this) (?:world|age|era|landscape)",
+  "delv(?:e|es|ed|ing) (?:into|deeper)",
+  "a testament to",
+  "(?:rich|intricate|vibrant) tapestry",
+  "in (?:conclusion|summary)",
+  "to sum up",
+  "not only .{1,60}? but also",
+  "navigat(?:e|es|ing) (?:the )?(?:complexities|challenges|landscape)",
+  "(?:ever-evolving|ever-changing|rapidly evolving) (?:landscape|world|field)",
+  "foster(?:s|ing)? (?:a|an|the) ",
+  "leverag(?:e|es|ing) (?:the|its|their) ",
+  "seamless(?:ly)?",
+  "multifaceted",
+  "pivotal",
+  "paramount",
+  "an? (?:wide|broad|vast) (?:range|array|variety) of",
+  "(?:challenges|obstacles) and opportunities",
+  "the realm of",
+  "serv(?:e|es) as an? (?:powerful|valuable|crucial|vital|key)",
+  "underscor(?:e|es|ing) the importance",
+  "(?:furthermore|moreover|additionally|consequently|therefore|in addition),",
+];
+const AI_RE_EN = new RegExp(AI_PHRASES_EN.map((p) => `(?:${p})`).join("|"), "giu");
+const CONNECTOR_START_EN = new RegExp(
+  "^(?:furthermore|moreover|additionally|in addition|on the other hand|in this sense|therefore|" +
+    "consequently|finally|firstly|secondly|lastly|in summary|in conclusion|however|nevertheless|" +
+    "similarly|likewise|overall)(?![\\p{L}\\p{M}\\p{N}_])",
+  "iu",
+);
+const LEXICON = { es: [AI_RE, CONNECTOR_START], en: [AI_RE_EN, CONNECTOR_START_EN] };
+
 // round() de Python: los empates exactos se redondean al par (toFixed los sube).
 function round(x, d) {
   const exact = Math.abs(x).toFixed(80);
@@ -144,7 +194,8 @@ function mattr(tokens, window = 50) {
   return total / n;
 }
 
-export function stylometry(text, sentences) {
+export function stylometry(text, sentences, lang = "es") {
+  const [aiRe, connectorStart] = LEXICON[lang];
   const tokens = words(text).map((w) => w.toLowerCase());
   const nWords = Math.max(tokens.length, 1);
   const lengths = sentences.map((s) => words(s.text).length);
@@ -153,9 +204,9 @@ export function stylometry(text, sentences) {
   const paragraphs = new Map();
   sentences.forEach((s, i) => paragraphs.set(s.paragraph, (paragraphs.get(s.paragraph) || 0) + lengths[i]));
 
-  const sentenceHits = sentences.map((s) => [...s.text.matchAll(AI_RE)].map((m) => m[0]));
+  const sentenceHits = sentences.map((s) => [...s.text.matchAll(aiRe)].map((m) => m[0]));
   const nHits = sentenceHits.reduce((a, h) => a + h.length, 0);
-  const connectorStarts = sentences.filter((s) => CONNECTOR_START.test(s.text)).length;
+  const connectorStarts = sentences.filter((s) => connectorStart.test(s.text)).length;
 
   const features = {
     palabras: tokens.length,
@@ -192,7 +243,7 @@ export function stylometry(text, sentences) {
 
 // ---------- guía de reescritura ----------
 
-export function guidance(sentences, phraseHits, probability) {
+export function guidance(sentences, phraseHits, probability, lang = "es") {
   const reasons = [];
   const suggestions = [];
   const phrases = [...new Set(phraseHits.flat().map((h) => h.toLowerCase()))].sort(pyCompare);
@@ -200,7 +251,8 @@ export function guidance(sentences, phraseHits, probability) {
     reasons.push("Frases hechas típicas de IA: " + phrases.slice(0, 6).map((p) => `«${p}»`).join(", ") + ".");
     suggestions.push("Sustituye las frases hechas por afirmaciones concretas: ¿qué dato, ejemplo o autor respalda la idea?");
   }
-  const connectors = sentences.map((s) => s.text.match(CONNECTOR_START)).filter(Boolean).map((m) => m[0]);
+  const connectorStart = LEXICON[lang][1];
+  const connectors = sentences.map((s) => s.text.match(connectorStart)).filter(Boolean).map((m) => m[0]);
   if (connectors.length >= 2) {
     reasons.push(`${connectors.length} oraciones empiezan con conectores formulaicos (${connectors.slice(0, 4).join(", ")}).`);
     suggestions.push("Quita conectores de relleno o reordena las ideas para que se enlacen solas.");
@@ -267,7 +319,14 @@ export function buildReport(rawText, text, sentences, stats, calib, modelId) {
   if (nWords < RECOMMENDED_WORDS) warnings.push(`Con menos de ${RECOMMENDED_WORDS} palabras el resultado es poco fiable.`);
   if (rawText.length > MAX_CHARS) warnings.push(`Solo se analizaron los primeros ${MAX_CHARS.toLocaleString("en")} caracteres.`);
 
-  const style = stylometry(text, sentences);
+  const lang = detectLanguage(text);
+  if (lang === "en")
+    warnings.push(
+      "Texto en inglés: el análisis en inglés es experimental y no usa el clasificador " +
+        "supervisado (entrenado solo en español).",
+    );
+
+  const style = stylometry(text, sentences, lang);
   const sentenceProbs = sentences.map(() => style.score);
   const signals = { estilometria: { probabilidad: round(style.score, 3), rasgos: style.features } };
   const reasons = [...style.reasons];
@@ -275,6 +334,9 @@ export function buildReport(rawText, text, sentences, stats, calib, modelId) {
 
   if (stats) {
     const docScore = binocularsScore(stats);
+    // La calibración del navegador es la del español; en inglés los porcentajes son aproximados.
+    const calibrado = lang === "es";
+    if (!calibrado) warnings.push("El detector aún no está calibrado para este modelo; los porcentajes son aproximados.");
     const binoProb = calibratedProbability(calib, docScore);
     docProb = W_BINOCULARS * binoProb + W_STYLE * style.score;
     signals.binoculars = {
@@ -282,7 +344,7 @@ export function buildReport(rawText, text, sentences, stats, calib, modelId) {
       umbral_bajo_fpr: calib.threshold_low_fpr,
       probabilidad: round(binoProb, 3),
       modelo: modelId,
-      calibrado: true,
+      calibrado,
       en_navegador: true,
     };
     if (docScore < calib.threshold_low_fpr) reasons.unshift("El texto es muy predecible para los modelos de lenguaje (patrón típico de IA).");
@@ -323,12 +385,13 @@ export function buildReport(rawText, text, sentences, stats, calib, modelId) {
       texto: text.slice(sentences[idx[0]].start, sentences[idx.at(-1)].end),
       probabilidad: round(pProb, 3),
       nivel: level(pProb),
-      ...guidance(idx.map((i) => sentences[i]), idx.map((i) => style.sentenceHits[i]), pProb),
+      ...guidance(idx.map((i) => sentences[i]), idx.map((i) => style.sentenceHits[i]), pProb, lang),
     };
   });
 
   return {
     texto: text,
+    idioma: lang,
     parrafos: paragraphs,
     parafrasis_disponible: false,
     probabilidad_ia: round(docProb, 3),

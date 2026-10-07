@@ -121,3 +121,26 @@ def test_meta_combina_senales():
     humano = m.probability(meta.features(1.05, 0.2, 0.01))
     assert ia > 0.9 and humano < 0.1
     assert m.probability(meta.features(0.9, 0.5, 0.5)) == 0.5
+
+
+IA_EN = (
+    "In today's rapidly evolving world, education plays a crucial role in shaping the future of society. "
+    "Furthermore, it is important to note that technology offers a wide range of opportunities for students. "
+    "Moreover, teachers must navigate the complexities of digital learning in a seamless way. "
+    "Additionally, schools should foster a culture of innovation and collaboration among learners. "
+    "In conclusion, the realm of education is not only changing quickly but also creating new challenges and opportunities. "
+) * 4
+
+
+def test_ingles_detectado_con_lexico_propio():
+    r = analyze_text(IA_EN)
+    assert r["idioma"] == "en"
+    assert any("inglés" in a for a in r["avisos"])
+    exprs = {e.lower() for o in r["oraciones"] for e in o["expresiones"]}
+    assert {"plays a crucial role", "it is important to note", "in conclusion"} <= exprs
+    assert r["senales"]["estilometria"]["rasgos"]["conectores_inicio"] > 0.5
+
+
+def test_espanol_no_cambia_de_idioma():
+    assert analyze_text(IA)["idioma"] == "es"
+    assert analyze_text(HUMANO + " " + HUMANO)["idioma"] == "es"

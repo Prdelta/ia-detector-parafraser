@@ -9,10 +9,11 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import config, rewrite
+from . import config, rewrite, similarity
 from .analyzer import analyze_text
 from .detectors import binoculars
 from .extract import UnsupportedFile, extract_text
+from .segment import detect_language
 
 logging.basicConfig(level=logging.INFO)
 
@@ -84,6 +85,16 @@ async def paraphrase(body: TextIn):
         logging.exception("Fallo en la paráfrasis")
         raise HTTPException(status_code=500, detail="No se pudo parafrasear el párrafo.")
     return {"texto": result, "aviso": rewrite.PARAPHRASE_NOTICE}
+
+
+@app.post("/api/similitud")
+async def similar_sources(body: TextIn):
+    if not config.ENABLE_SIMILARITY:
+        raise HTTPException(status_code=503, detail="La búsqueda de coincidencias está desactivada en este servidor.")
+    if len(body.texto.split()) < config.MIN_WORDS or len(body.texto) > config.MAX_CHARS:
+        raise HTTPException(status_code=422, detail="El texto no tiene una extensión válida.")
+    # Solo salen del servidor palabras clave de cada párrafo, no el texto.
+    return await run_in_threadpool(similarity.check, body.texto, detect_language(body.texto))
 
 
 @app.get("/")

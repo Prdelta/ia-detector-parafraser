@@ -48,6 +48,7 @@ def main():
     parser.add_argument("--eval-only", action="store_true")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--save-scores", help="CSV donde guardar la puntuación de cada texto")
+    parser.add_argument("--lang", default="es", choices=["es", "en"], help="idioma de la calibración")
     args = parser.parse_args()
 
     df = pd.read_parquet(args.data)
@@ -90,7 +91,7 @@ def main():
         df.drop(columns=["text"]).to_csv(args.save_scores, index=False)
 
     if args.eval_only:
-        calib = load_calibration(det.model_id)
+        calib = load_calibration(det.model_id, args.lang)
         preds = np.array([calib.probability(x) for x in s]) >= 0.5
         print(f"Exactitud con calibración actual ({'calibrada' if calib.calibrated else 'por defecto'}): "
               f"{(preds == labels).mean():.3f}")
@@ -105,9 +106,10 @@ def main():
         "metrics": {"auroc": round(auroc, 4), "tpr_at_1pct_fpr": round(tpr, 4), "n": int(len(df))},
         "data": Path(args.data).name,
     }
-    config.CALIBRATION_FILE.parent.mkdir(exist_ok=True)
-    config.CALIBRATION_FILE.write_text(json.dumps(out, indent=2), encoding="utf-8")
-    print(f"Calibración guardada en {config.CALIBRATION_FILE}")
+    path = config.calibration_file(args.lang)
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(json.dumps(out, indent=2), encoding="utf-8")
+    print(f"Calibración guardada en {path}")
 
 
 if __name__ == "__main__":

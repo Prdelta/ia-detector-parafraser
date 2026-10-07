@@ -4,7 +4,7 @@ import numpy as np
 
 from . import config, rewrite
 from .detectors import binoculars, calibration, classifier, meta, stylometry
-from .segment import normalize, split_sentences, words
+from .segment import detect_language, normalize, split_sentences, words
 
 # Pesos fijos cuando no hay meta-clasificador entrenado (models/meta.json).
 W_BINOCULARS = 0.8
@@ -43,9 +43,14 @@ def analyze_text(raw_text: str) -> dict:
     if len(raw_text) > config.MAX_CHARS:
         warnings.append(f"Solo se analizaron los primeros {config.MAX_CHARS:,} caracteres.")
 
-    style = stylometry.analyze(text, sentences)
+    lang = detect_language(text)
+    if lang == "en":
+        warnings.append("Texto en inglés: el análisis en inglés es experimental y no usa el clasificador "
+                        "supervisado (entrenado solo en español).")
+
+    style = stylometry.analyze(text, sentences, lang)
     detector = binoculars.get_detector()
-    clf = classifier.get_classifier()
+    clf = classifier.get_classifier() if lang == "es" else None
 
     sentence_probs = np.full(len(sentences), style.score)
     signals = {"estilometria": {"probabilidad": round(style.score, 3), "rasgos": style.features}}
@@ -59,7 +64,7 @@ def analyze_text(raw_text: str) -> dict:
             reasons.insert(0, "El clasificador entrenado reconoce rasgos de texto redactado o parafraseado con IA.")
 
     if detector is not None:
-        calib = calibration.load(detector.model_id)
+        calib = calibration.load(detector.model_id, lang)
         if not calib.calibrated:
             warnings.append("El detector aún no está calibrado para este modelo; los porcentajes son aproximados.")
         stats = detector.token_stats(text)
@@ -119,11 +124,12 @@ def analyze_text(raw_text: str) -> dict:
             "texto": text[start:end],
             "probabilidad": round(p_prob, 3),
             "nivel": _level(p_prob),
-            **rewrite.guidance([sentences[i] for i in idx], [style.sentence_hits[i] for i in idx], p_prob),
+            **rewrite.guidance([sentences[i] for i in idx], [style.sentence_hits[i] for i in idx], p_prob, lang),
         })
 
     return {
         "texto": text,
+        "idioma": lang,
         "parrafos": paragraphs,
         "parafrasis_disponible": bool(config.PARAPHRASE_MODEL),
         "probabilidad_ia": round(float(doc_prob), 3),

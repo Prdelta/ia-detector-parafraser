@@ -14,7 +14,7 @@ import pytest  # noqa: E402
 
 from backend.app.analyzer import analyze_text  # noqa: E402
 
-from test_core import HUMANO, IA  # noqa: E402
+from test_core import HUMANO, IA, IA_EN  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -31,6 +31,8 @@ TEXTOS = [
      "requieren un enfoque integral que permita abordar los retos de manera efectiva, eficiente y sostenible en el "
      "tiempo, sin lugar a dudas, a medida que la sociedad avanza hacia nuevos horizontes de desarrollo.") * 2,
     "Texto demasiado corto para analizar.",
+    IA_EN,
+    HUMANO + "\n\n" + IA_EN,
 ]
 
 

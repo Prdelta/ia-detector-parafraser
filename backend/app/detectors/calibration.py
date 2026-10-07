@@ -30,9 +30,14 @@ class Calibration:
 DEFAULT = Calibration(slope=-30.0, intercept=27.0, threshold_low_fpr=0.85)
 
 
-def load(model_id: str) -> Calibration:
-    path = config.CALIBRATION_FILE
+def load(model_id: str, lang: str = "es") -> Calibration:
+    """Calibración del idioma; si falta, la del español marcada como no calibrada."""
+    path = config.calibration_file(lang)
     if not path.exists():
+        if lang != "es":
+            fallback = load(model_id, "es")
+            fallback.calibrated = False
+            return fallback
         return DEFAULT
     data = json.loads(path.read_text(encoding="utf-8"))
     if data.get("model_id") != model_id:

@@ -1,4 +1,4 @@
-"""Rasgos estilométricos asociados a texto generado por IA en español.
+"""Rasgos estilométricos asociados a texto generado por IA (español e inglés).
 
 Es una señal débil y complementaria. Los pesos son provisionales y deben
 reemplazarse por los aprendidos con ``research/train_meta.py`` cuando haya datos.
@@ -48,6 +48,43 @@ CONNECTOR_START = re.compile(
     re.IGNORECASE,
 )
 
+# Inglés (experimental): expresiones y conectores sobrerrepresentados en los LLM.
+AI_PHRASES_EN = [
+    r"it is (?:important|worth|crucial|essential|vital) to (?:note|mention|consider|remember|highlight|recognize)",
+    r"it is worth noting",
+    r"(?:plays?|playing) an? (?:crucial|pivotal|vital|key|significant|central|essential) role",
+    r"in (?:today[’']s|the modern|the digital|this) (?:world|age|era|landscape)",
+    r"delv(?:e|es|ed|ing) (?:into|deeper)",
+    r"a testament to",
+    r"(?:rich|intricate|vibrant) tapestry",
+    r"in (?:conclusion|summary)",
+    r"to sum up",
+    r"not only .{1,60}? but also",
+    r"navigat(?:e|es|ing) (?:the )?(?:complexities|challenges|landscape)",
+    r"(?:ever-evolving|ever-changing|rapidly evolving) (?:landscape|world|field)",
+    r"foster(?:s|ing)? (?:a|an|the) ",
+    r"leverag(?:e|es|ing) (?:the|its|their) ",
+    r"seamless(?:ly)?",
+    r"multifaceted",
+    r"pivotal",
+    r"paramount",
+    r"an? (?:wide|broad|vast) (?:range|array|variety) of",
+    r"(?:challenges|obstacles) and opportunities",
+    r"the realm of",
+    r"serv(?:e|es) as an? (?:powerful|valuable|crucial|vital|key)",
+    r"underscor(?:e|es|ing) the importance",
+    r"(?:furthermore|moreover|additionally|consequently|therefore|in addition),",
+]
+_AI_RE_EN = re.compile("|".join(f"(?:{p})" for p in AI_PHRASES_EN), re.IGNORECASE)
+CONNECTOR_START_EN = re.compile(
+    r"^(?:furthermore|moreover|additionally|in addition|on the other hand|in this sense|therefore|"
+    r"consequently|finally|firstly|secondly|lastly|in summary|in conclusion|however|nevertheless|"
+    r"similarly|likewise|overall)\b",
+    re.IGNORECASE,
+)
+
+LEXICON = {"es": (_AI_RE, CONNECTOR_START), "en": (_AI_RE_EN, CONNECTOR_START_EN)}
+
 
 @dataclass
 class StyleResult:
@@ -74,7 +111,8 @@ def _cv(values: list[int]) -> float:
     return statistics.pstdev(values) / mean if mean else 0.0
 
 
-def analyze(text: str, sentences: list[Sentence]) -> StyleResult:
+def analyze(text: str, sentences: list[Sentence], lang: str = "es") -> StyleResult:
+    ai_re, connector_start = LEXICON[lang]
     tokens = [w.lower() for w in words(text)]
     n_words = max(len(tokens), 1)
     sent_lengths = [len(words(s.text)) for s in sentences if words(s.text)]
@@ -83,9 +121,9 @@ def analyze(text: str, sentences: list[Sentence]) -> StyleResult:
     for s, length in zip(sentences, (len(words(s.text)) for s in sentences)):
         paragraphs[s.paragraph] = paragraphs.get(s.paragraph, 0) + length
 
-    sentence_hits = [[m.group(0) for m in _AI_RE.finditer(s.text)] for s in sentences]
+    sentence_hits = [[m.group(0) for m in ai_re.finditer(s.text)] for s in sentences]
     n_hits = sum(len(h) for h in sentence_hits)
-    connector_starts = sum(1 for s in sentences if CONNECTOR_START.match(s.text))
+    connector_starts = sum(1 for s in sentences if connector_start.match(s.text))
 
     features = {
         "palabras": len(tokens),
