@@ -50,7 +50,8 @@ def load_data(autext_n: int, seed: int) -> pd.DataFrame:
     autext = autext[autext.text.str.split().str.len() >= 60]
     autext = autext.groupby("label", group_keys=False).apply(
         lambda g: g.sample(min(len(g), autext_n // 2), random_state=seed))
-    autext = autext.assign(source_id="at_" + autext.id.astype(str), task="autext", origen="autext")
+    autext = autext.assign(id="at_" + autext.id.astype(str), task="autext", origen="autext")
+    autext["source_id"] = autext.id
     cols = ["id", "source_id", "text", "label", "domain", "model", "task", "origen"]
     return pd.concat([corpus[cols], autext[cols]], ignore_index=True)
 

@@ -32,13 +32,58 @@ function mostrarError(msg) {
   $("error").classList.toggle("hidden", !msg);
 }
 
+// ---------- modo local (frontend/local) ----------
+
+const CARGANDO = "Analizando… puede tardar unos segundos.";
+let worker = null;
+
+const local = () => $("modo-local").checked;
+try {
+  $("modo-local").checked = localStorage.getItem("iadeccion-local") === "1";
+} catch {}
+$("modo-local").addEventListener("change", () => {
+  try {
+    localStorage.setItem("iadeccion-local", local() ? "1" : "0");
+  } catch {}
+});
+
+function analizarLocal(texto) {
+  worker ??= new Worker("/static/local/worker.js", { type: "module" });
+  return new Promise((resolve, reject) => {
+    worker.onmessage = ({ data }) => {
+      if (data.tipo === "progreso") {
+        $("cargando-texto").textContent =
+          data.fase === "descarga"
+            ? `Descargando modelos: ${Math.round(data.cargado / 1e6)} de ${Math.round(data.total / 1e6)} MB (solo la primera vez)…`
+            : `Analizando en tu equipo… fragmento ${data.hecho} de ${data.total}`;
+      } else if (data.tipo === "resultado") resolve(data.datos);
+      else reject(new Error(data.mensaje));
+    };
+    worker.onerror = (e) => reject(new Error(e.message || "El análisis local falló en este navegador."));
+    worker.postMessage({ texto });
+  });
+}
+
+async function analizarServidor(texto) {
+  const res = await fetch("/api/analizar", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ texto }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "Error al analizar.");
+  return data;
+}
+
+const analizarTexto = (texto) => (local() ? analizarLocal(texto) : analizarServidor(texto));
+
 $("analizar").addEventListener("click", async () => {
   mostrarError("");
+  if (local() && modo !== "pegar") return mostrarError("El análisis en el navegador solo admite texto pegado.");
   let req;
   if (modo === "pegar") {
     const texto = $("texto").value.trim();
     if (contarPalabras(texto) < 80) return mostrarError("Pega al menos 80 palabras.");
-    req = { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ texto }) };
   } else {
     if (!archivo) return mostrarError("Elige un archivo primero.");
     const fd = new FormData();
@@ -47,12 +92,17 @@ $("analizar").addEventListener("click", async () => {
   }
 
   $("analizar").disabled = true;
+  $("cargando-texto").textContent = CARGANDO;
   $("cargando").classList.remove("hidden");
   try {
-    const res = await fetch(modo === "pegar" ? "/api/analizar" : "/api/analizar-archivo", req);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "Error al analizar.");
-    pintar(data);
+    if (modo === "pegar") {
+      pintar(await analizarTexto($("texto").value.trim()));
+    } else {
+      const res = await fetch("/api/analizar-archivo", req);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Error al analizar.");
+      pintar(data);
+    }
   } catch (err) {
     mostrarError(err.message);
   } finally {
@@ -163,16 +213,10 @@ $("reanalizar").addEventListener("click", async () => {
   const btn = $("reanalizar");
   btn.disabled = true;
   $("error-reescritura").classList.add("hidden");
+  $("cargando-texto").textContent = CARGANDO;
   $("cargando").classList.remove("hidden");
   try {
-    const res = await fetch("/api/analizar", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ texto: textoConCambios() }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "Error al analizar.");
-    pintar(data);
+    pintar(await analizarTexto(textoConCambios()));
   } catch (err) {
     $("error-reescritura").textContent = err.message;
     $("error-reescritura").classList.remove("hidden");

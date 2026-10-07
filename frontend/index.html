@@ -34,13 +34,19 @@
         </label>
       </div>
 
+      <label class="local">
+        <input type="checkbox" id="modo-local">
+        <span><strong>Analizar en mi navegador.</strong> El texto no sale de tu equipo. La primera vez descarga
+        los modelos (~1 GB) y quedan guardados. Solo con texto pegado.</span>
+      </label>
+
       <button class="primary" id="analizar">Analizar</button>
       <p class="error hidden" id="error"></p>
     </section>
 
     <section class="hidden" id="cargando">
       <div class="spinner"></div>
-      <p>Analizando… puede tardar unos segundos.</p>
+      <p id="cargando-texto">Analizando… puede tardar unos segundos.</p>
     </section>
 
     <section class="hidden" id="resultado">

@@ -1,0 +1,11 @@
+import { AutoTokenizer, AutoModelForCausalLM } from "@huggingface/transformers";
+const id = "onnx-community/Qwen2.5-0.5B";
+const dtype = process.argv[2] || "q4f16";
+let t = Date.now();
+const tok = await AutoTokenizer.from_pretrained(id);
+const model = await AutoModelForCausalLM.from_pretrained(id, { dtype, device: "cpu" });
+console.log("cargado", dtype, (Date.now() - t) / 1000, "s");
+const enc = tok("La educación desempeña un papel fundamental en el desarrollo de la sociedad.", { add_special_tokens: false });
+t = Date.now();
+const out = await model({ input_ids: enc.input_ids, attention_mask: enc.attention_mask });
+console.log("forward", (Date.now() - t) / 1000, "s", out.logits.type, out.logits.dims, out.logits.data.constructor.name);

@@ -1,0 +1,12 @@
+{
+  "model_id": "onnx-community/Qwen2.5-0.5B|onnx-community/Qwen2.5-0.5B-Instruct|q4f16",
+  "slope": -5.917070981373351,
+  "intercept": 5.31387587422408,
+  "threshold_low_fpr": 0.7864,
+  "metrics": {
+    "auroc": 0.72,
+    "tpr_at_1pct_fpr": 0.192,
+    "n": 1000
+  },
+  "data": "autextification_es_train.parquet"
+}

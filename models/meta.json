@@ -1,0 +1,31 @@
+{
+  "features": [
+    "binoculars",
+    "estilo",
+    "clasificador"
+  ],
+  "binoculars": "Qwen/Qwen2.5-0.5B|Qwen/Qwen2.5-0.5B-Instruct",
+  "clasificador": "clasificador",
+  "coef": [
+    -1.4512648271143,
+    0.08802414815926347,
+    3.147112094358972
+  ],
+  "intercept": -1.3015759344231743,
+  "mean": [
+    0.92360505100674,
+    0.3370795030926008,
+    5.083497546081
+  ],
+  "std": [
+    0.09517514773039208,
+    0.20157802944162112,
+    4.419559826432917
+  ],
+  "metricas_cv": {
+    "auroc": 0.9106,
+    "tpr_at_1pct_fpr": 0.4725,
+    "fpr_at_065": 0.1023,
+    "n": 2039
+  }
+}

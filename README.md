@@ -21,6 +21,10 @@ estudiantes revisen sus trabajos antes de entregarlos. Prioriza el español.
 - **Paráfrasis automática (opcional):** reescribe un párrafo con un modelo local. El resultado
   sigue siendo texto de IA y la interfaz lo advierte; se puede desactivar con `IADECCION_PARAFRASEADOR=0`.
 - **Privacidad:** el texto solo existe en memoria durante el análisis; no se guarda en ningún sitio.
+- **Analizar en mi navegador (opcional):** Binoculars y estilometría se ejecutan en el propio equipo con
+  [transformers.js](https://huggingface.co/docs/transformers.js) (WebGPU, o WebAssembly si no hay), así que el
+  texto no sale del navegador. La primera vez descarga los modelos cuantizados (~1 GB, q4f16) y quedan en caché.
+  No incluye el clasificador supervisado, la paráfrasis ni la lectura de PDF/DOCX.
 
 ## Puesta en marcha
 
@@ -147,6 +151,17 @@ El meta-clasificador se entrena con textos que el clasificador no vio (test del 
 AuTexTification) y se evalúa con validación cruzada agrupada por tema. Si `models/clasificador/`
 existe pero falta `models/meta.json`, la aplicación usa pesos fijos (50 % Binoculars, 30 %
 clasificador, 20 % estilo). La puntuación por oración sigue siendo solo de Binoculars.
+
+### Modo navegador
+
+El código del navegador está en `frontend/local/`: `core.js` replica la segmentación, la estilometría y el
+informe del backend (`tests/test_local_parity.py` comprueba que coinciden) y `binoculars.js` calcula Binoculars
+con los modelos ONNX. La cuantización cambia las puntuaciones, así que tiene su propia calibración:
+
+```bash
+cd research/browser && npm install && cd ../..
+python research/calibrate_local.py      # genera frontend/local/calibration.json (Node, CPU, ~1 h)
+```
 
 ## Pruebas
 

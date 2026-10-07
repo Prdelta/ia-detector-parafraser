@@ -94,6 +94,10 @@ textarea {
 .drop.over { border-color: var(--accent); color: var(--text); }
 .drop input { display: none; }
 
+.local { display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; font-size: 0.9rem; color: var(--muted); cursor: pointer; }
+.local input { margin-top: 3px; flex: none; }
+.local strong { color: var(--text); }
+
 button.primary, button.secondary {
   font: inherit;
   font-weight: 600;
