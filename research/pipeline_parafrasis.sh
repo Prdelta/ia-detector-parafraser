@@ -11,7 +11,7 @@ N=${N:-350}
 for model in BSC-LT/salamandra-2b-instruct utter-project/EuroLLM-1.7B-Instruct Qwen/Qwen2.5-1.5B-Instruct; do
   echo "== Paráfrasis con $model"
   $PY -u research/corpus/generate_ai.py --provider local --model "$model" --domain academico \
-      --n "$N" --tareas parafrasear --batch-size 8
+      --n "$N" --tareas parafrasear --batch-size "${BATCH:-4}"
 done
 
 echo "== Corpus"

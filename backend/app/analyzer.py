@@ -60,8 +60,6 @@ def analyze_text(raw_text: str) -> dict:
     if clf is not None:
         clf_prob = clf.probability(text)
         signals["clasificador"] = {"probabilidad": round(clf_prob, 3), "modelo": clf.model_id}
-        if clf_prob >= 0.9:
-            reasons.insert(0, "El clasificador entrenado reconoce rasgos de texto redactado o parafraseado con IA.")
 
     if detector is not None:
         calib = calibration.load(detector.model_id, lang)
@@ -104,10 +102,18 @@ def analyze_text(raw_text: str) -> dict:
                 hit_bonus = 0.05 * min(len(style.sentence_hits[i]), 2)
                 sentence_probs[i] = min(1.0, calib.probability(s_score) + hit_bonus)
     elif clf_prob is not None:
-        doc_prob = W_BINOCULARS * clf_prob + W_STYLE * style.score
+        # Sin Binoculars no hay meta-clasificador que corrija al clasificador (sus probabilidades
+        # están infladas), así que pesa poco.
+        doc_prob = 0.3 * clf_prob + 0.7 * style.score
+        warnings.append("No se usó el modelo principal (Binoculars): el resultado es menos fiable.")
     else:
         doc_prob = style.score
         warnings.append("Solo se usó el análisis de estilo (el modelo principal no está disponible). Confianza reducida.")
+
+    # Las probabilidades del clasificador están infladas (≥0.9 en la mayoría de textos humanos):
+    # solo se cita como motivo cuando el resultado combinado ya apunta a IA.
+    if clf_prob is not None and clf_prob >= 0.9 and doc_prob >= 0.65:
+        reasons.insert(0, "El clasificador entrenado reconoce rasgos de texto redactado o parafraseado con IA.")
 
     sentence_words = np.array([len(words(s.text)) for s in sentences])
     flagged = sentence_probs >= 0.65

@@ -168,26 +168,40 @@ La regresión se entrena con clases equilibradas, así que después se desplaza 
 el umbral de la aplicación (0.65, "probablemente IA") no marque más del 1 % de los textos humanos
 fuera de muestra (`--fpr-objetivo 0.01`; `0` lo desactiva).
 
-#### Resultados (octubre 2026)
+#### Resultados (octubre 2026, versión 2 con paráfrasis)
 
-Clasificador XLM-R (época 2): AUROC 0.944 en el test del corpus propio y 0.848 en AuTexTification test.
-Ordena bien, pero sus probabilidades están infladas (con p≥0.65 marca al 95 % de los humanos de
-AuTexTification), por eso no se usa solo.
+El clasificador se reentrenó añadiendo 1 001 paráfrasis de textos humanos generadas con Salamandra-2B,
+EuroLLM-1.7B y Qwen2.5-1.5B (`research/pipeline_parafrasis.sh`), con cuatro enunciados distintos
+("con tus propias palabras", "que no se note que está copiado", "mejora la redacción", "que suene humano").
+Clasificador XLM-R: AUROC 0.933 en el test del corpus propio y 0.912 en AuTexTification test (antes 0.848).
+Sus probabilidades siguen infladas (con p≥0.65 marca a más de la mitad de los humanos), por eso no se usa solo.
 
-Meta-clasificador, validación cruzada agrupada por tema (2 039 textos: test del corpus propio +
-1 500 de AuTexTification test). Porcentajes con el umbral 0.65:
+Meta-clasificador, validación cruzada agrupada por tema (2 333 textos: test del corpus propio, con
+780 paráfrasis, + 1 500 de AuTexTification test). Porcentajes con el umbral 0.65:
 
 | Método | AUROC | TPR @ 1 % FPR | Humanos marcados | IA marcada |
 |---|---|---|---|---|
-| Binoculars | 0.868 | 0.442 | 1.4 % | 47 % |
-| Pesos fijos | 0.877 | 0.394 | 6.3 % | 60 % |
-| Meta sin ajustar | 0.911 | 0.472 | 10.2 % | 73 % |
-| **Meta ajustado (en uso)** | **0.911** | **0.472** | **1.1 %** | **47 %** |
+| Binoculars | 0.822 | 0.338 | 1.4 % | 36 % |
+| Pesos fijos | 0.850 | 0.330 | 6.3 % | 54 % |
+| Meta sin ajustar | 0.867 | 0.348 | 11.4 % | 66 % |
+| **Meta ajustado (en uso)** | **0.867** | **0.348** | **1.1 %** | **35 %** |
 
-En el corpus propio el meta ajustado marca al 0.2 % de los humanos y detecta el 73 % de lo
-redactado y el 85 % de lo "humanizado". La paráfrasis con IA sigue sin detectarse (AUROC 0.66).
-Los coeficientes estandarizados (clasificador 3.1, Binoculars −1.5, estilo 0.09) indican que la
-estilometría apenas aporta una vez que están las otras dos señales.
+Por tarea, en el corpus propio (meta ajustado: 0.2 % de humanos marcados):
+
+| Tarea de la IA | AUROC | IA marcada (≥0.65) |
+|---|---|---|
+| Redactar | 0.998 | 78 % |
+| Humanizar | 0.999 | 77 % |
+| **Parafrasear** | **0.887** (antes 0.664) | **12 %** (antes 0 %) |
+
+- La paráfrasis ya se distingue (AUROC 0.89), pero con el umbral prudente de la aplicación solo se
+  marca el 12 %; el 30 % queda en la zona "incierta" y el 58 % pasa como humano. Sigue siendo el punto débil.
+- Las probabilidades del clasificador están saturadas (≥0.99 en el 70 % de los textos humanos), así que
+  no sirve como señal propia de paráfrasis: solo se cita como motivo cuando el resultado combinado es IA.
+- Las cifras globales bajan respecto a la versión 1 porque el conjunto de evaluación ahora tiene muchas
+  más paráfrasis (780 frente a ~55), que son lo más difícil; no son comparables directamente.
+- Coeficientes estandarizados: Binoculars −1.24, clasificador 1.25, estilo 0.44.
+- La versión 1 (clasificador y meta) está guardada en `data/clasificador_v1` y `data/meta_v1.json`.
 
 ### Modo navegador
 
@@ -223,19 +237,37 @@ Todos los textos son humanos y anteriores a ChatGPT; se usa el análisis complet
 
 | Grupo | n | Marcado como IA | Incierto o más | Prob. media |
 |---|---|---|---|---|
-| Hablante de herencia (COWS-L2H) | 200 | 0.0 % | 2.0 % | 0.12 |
-| Aprendiz de español L2 (COWS-L2H) | 200 | 0.0 % | 10.5 % | 0.15 |
-| Académico técnico | 185 | 0.0 % | 0.5 % | 0.03 |
-| Académico humanidades/sociales | 179 | 0.6 % | 3.4 % | 0.04 |
-| Wikipedia | 108 | 0.0 % | 0.0 % | 0.05 |
-| Texto corto (120 palabras) | 200 | 0.5 % | 7.0 % | 0.08 |
+| Hablante de herencia (COWS-L2H) | 200 | 0.0 % | 1.0 % | 0.12 |
+| Aprendiz de español L2 (COWS-L2H) | 200 | 0.0 % | 9.0 % | 0.14 |
+| Académico técnico | 185 | 0.0 % | 0.0 % | 0.05 |
+| Académico humanidades/sociales | 179 | 0.6 % | 2.8 % | 0.06 |
+| Wikipedia | 108 | 0.0 % | 0.0 % | 0.09 |
+| Texto corto (120 palabras) | 200 | 0.0 % | 5.5 % | 0.09 |
 
 - Ningún grupo supera el 1 % de acusaciones con el umbral de la aplicación.
-- Los aprendices de español L2 caen 3 veces más en la zona "incierta" que los nativos académicos.
+- Los aprendices de español L2 son el grupo que más cae en la zona "incierta" (9 %).
   La interfaz debe seguir dejando claro que "incierto" no es una acusación.
 - Los textos de COWS-L2H no se usaron en ningún entrenamiento. Los académicos y Wikipedia salen del
   test del corpus propio, con el que se ajustó el meta-clasificador, así que sus cifras pueden ser
   algo optimistas.
+
+### Inglés (experimental)
+
+```bash
+python research/download_data.py --lang en
+bash research/pipeline_ingles.sh     # genera models/calibration_en.json
+```
+
+Binoculars calibrado con AuTexTification en inglés (train: legal y wiki) y evaluado en dominios no
+vistos (test: noticias y reseñas, 3 000 textos):
+
+| Conjunto | AUROC | TPR @ 1 % FPR | Exactitud |
+|---|---|---|---|
+| Train (calibración) | 0.825 | 0.294 | — |
+| **Test (noticias, reseñas)** | **0.920** | **0.552** | **0.843** |
+
+Funciona mejor que en español con el mismo corpus (0.882 de AUROC), pero falla con el generador "A"
+de AuTexTification (AUROC 0.74). Falta un corpus propio en inglés con modelos actuales.
 
 ## Pruebas
 

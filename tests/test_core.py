@@ -144,3 +144,20 @@ def test_ingles_detectado_con_lexico_propio():
 def test_espanol_no_cambia_de_idioma():
     assert analyze_text(IA)["idioma"] == "es"
     assert analyze_text(HUMANO + " " + HUMANO)["idioma"] == "es"
+
+
+class _ClasificadorInflado:
+    model_id = "falso"
+
+    def probability(self, text):
+        return 0.99
+
+
+def test_motivo_del_clasificador_solo_si_el_resultado_es_ia(monkeypatch):
+    from backend.app import analyzer
+
+    monkeypatch.setattr(analyzer.classifier, "get_classifier", lambda: _ClasificadorInflado())
+    r = analyze_text(HUMANO + " " + HUMANO)
+    assert r["probabilidad_ia"] < 0.65
+    assert not any("clasificador entrenado" in m for m in r["motivos"])
+    assert any("Binoculars" in a for a in r["avisos"])
