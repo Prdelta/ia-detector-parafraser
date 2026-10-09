@@ -188,7 +188,7 @@ function pintarParrafos(d) {
             ? `<details class="parafrasis">
                  <summary>Parafrasear automáticamente con IA</summary>
                  <p class="aviso-ia">El resultado seguirá siendo texto generado por IA aunque el detector ya no lo marque. Revisa las normas de tu institución antes de usarlo.</p>
-                 <button class="boton boton-papel" data-parafrasear="${p.indice}">Generar paráfrasis</button>
+                 <button class="boton boton-secundario" data-parafrasear="${p.indice}">Generar paráfrasis</button>
                  <div class="resultado-ia" id="parafrasis-${p.indice}"></div>
                </details>`
             : ""
@@ -226,7 +226,7 @@ $("parrafos-marcados").addEventListener("click", async (e) => {
     caja.dataset.texto = data.texto;
     caja.innerHTML = `<blockquote>${escapar(data.texto)}</blockquote>
       <p class="aviso-ia">${escapar(data.aviso)}</p>
-      <button class="boton boton-papel" data-usar="${i}">Usar esta versión en el editor</button>`;
+      <button class="boton boton-secundario" data-usar="${i}">Usar esta versión en el editor</button>`;
   } catch (err) {
     caja.innerHTML = `<p class="error">${escapar(err.message)}</p>`;
   } finally {
@@ -267,11 +267,19 @@ function pintar(d) {
   $("input-card").classList.add("hidden");
   $("resultado").classList.remove("hidden");
 
-  $("porcentaje").textContent = pct(d.probabilidad_ia);
+  // La tarjeta toma el color del resultado y se rellena la zona de la escala en la que cae.
+  const p = d.probabilidad_ia;
+  const zona = p < 0.35 ? "bajo" : p < 0.65 ? "medio" : "alto";
+  const tarjeta = $("veredicto-tarjeta");
+  tarjeta.className = `veredicto-tarjeta ${zona}`;
+  void tarjeta.offsetWidth;  // reinicia la animación de entrada al reanalizar
+  ["humano", "incierto", "ia"].forEach((z, i) =>
+    document.querySelector(`.zona-${z}`).classList.toggle("activa", i === ["bajo", "medio", "alto"].indexOf(zona)));
+  contar($("porcentaje"), Math.round(p * 100));
   // La marca se desliza sobre la escala humano / incierto / IA (umbrales 35 % y 65 %).
   const marca = $("escala-marca");
   marca.style.left = "0%";
-  requestAnimationFrame(() => requestAnimationFrame(() => (marca.style.left = `${d.probabilidad_ia * 100}%`)));
+  requestAnimationFrame(() => requestAnimationFrame(() => (marca.style.left = `${p * 100}%`)));
   $("veredicto").textContent = d.veredicto;
   $("confianza").textContent = d.confianza;
   $("fraccion").textContent = pct(d.fraccion_texto_marcado);
@@ -280,10 +288,13 @@ function pintar(d) {
   $("avisos").innerHTML = d.avisos.map((a) => `<li>${escapar(a)}</li>`).join("");
 
   // Reconstruir párrafos con las oraciones resaltadas.
+  // --i ordena el resaltado animado: las oraciones marcadas se pintan una tras otra (máx. ~2 s).
   const parrafos = [];
+  let marcadas = 0;
   for (const o of d.oraciones) {
+    const orden = o.nivel === "bajo" ? "" : ` style="--i:${Math.min(marcadas++, 28)}"`;
     (parrafos[o.parrafo] ||= []).push(
-      `<span class="s ${o.nivel}" title="Probabilidad de IA: ${pct(o.probabilidad)}">${resaltarExpresiones(o.texto, o.expresiones)}</span>`
+      `<span class="s ${o.nivel}"${orden} title="Probabilidad de IA: ${pct(o.probabilidad)}">${resaltarExpresiones(o.texto, o.expresiones)}</span>`
     );
   }
   $("texto-marcado").innerHTML = parrafos.filter(Boolean).map((p) => `<p>${p.join(" ")}</p>`).join("");
@@ -327,4 +338,34 @@ async function buscarFuentes(d) {
   } catch (err) {
     caja.innerHTML = `<p class="error">${escapar(err.message)}</p>`;
   }
+}
+
+// ---------- tema claro / oscuro (por defecto, claro; el <head> lo aplica antes de pintar) ----------
+
+function actualizarTema() {
+  const oscuro = document.documentElement.dataset.theme === "dark";
+  $("tema-texto").textContent = oscuro ? "Modo claro" : "Modo oscuro";
+  $("tema").setAttribute("aria-label", oscuro ? "Cambiar a modo claro" : "Cambiar a modo oscuro");
+}
+$("tema").addEventListener("click", () => {
+  const oscuro = document.documentElement.dataset.theme !== "dark";
+  document.documentElement.dataset.theme = oscuro ? "dark" : "light";
+  try {
+    localStorage.setItem("iadeccion-tema", oscuro ? "oscuro" : "claro");
+  } catch {}
+  actualizarTema();
+});
+actualizarTema();
+
+// El porcentaje cuenta hasta su valor (sin animación si se pide menos movimiento).
+function contar(el, objetivo) {
+  const quieto = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (quieto || objetivo === 0) return (el.textContent = `${objetivo}%`);
+  const inicio = performance.now(), dura = 900;
+  const paso = (t) => {
+    const k = Math.min((t - inicio) / dura, 1);
+    el.textContent = `${Math.round(objetivo * (1 - (1 - k) ** 3))}%`;
+    if (k < 1) requestAnimationFrame(paso);
+  };
+  requestAnimationFrame(paso);
 }

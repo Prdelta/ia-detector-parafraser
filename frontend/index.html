@@ -6,66 +6,81 @@
   <title>IAdección</title>
   <meta name="description" content="Detector gratuito de escritura con IA para estudiantes">
   <link rel="preload" href="/static/fonts/literata-normal-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/static/fonts/instrument-sans-normal-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <script>
+    // Tema elegido antes de pintar, para evitar un parpadeo. Por defecto, claro.
+    try {
+      document.documentElement.dataset.theme = localStorage.getItem("iadeccion-tema") === "oscuro" ? "dark" : "light";
+    } catch { document.documentElement.dataset.theme = "light"; }
+  </script>
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
   <header class="cabecera">
     <div class="wrap cabecera-in">
-      <p class="marca">IAdección</p>
-      <p class="lema">Revisa tu trabajo antes de entregarlo: gratis, sin registro y sin guardar tu texto.</p>
+      <p class="marca"><span class="marca-punto" aria-hidden="true"></span>IAdección</p>
+      <button class="tema" id="tema" type="button" aria-label="Cambiar a modo oscuro">
+        <span class="tema-icono" aria-hidden="true"></span><span id="tema-texto">Modo oscuro</span>
+      </button>
     </div>
   </header>
 
-  <main class="wrap">
+  <main>
     <section id="input-card" class="entrada">
-      <h1 class="titulo">¿Tu texto suena a IA?</h1>
-      <p class="bajada">Pega tu ensayo o sube el documento. Te mostramos qué oraciones parecen generadas
-        y cómo reescribirlas con tu voz.</p>
+      <div class="banda">
+        <div class="wrap banda-in">
+          <h1 class="titulo"><span class="titulo-trazo">¿Tu texto suena a IA?</span></h1>
+          <p class="bajada">Pega tu ensayo o sube el documento. Te mostramos qué oraciones parecen generadas
+            y cómo reescribirlas con tu voz. Gratis, sin registro y sin guardar tu texto.</p>
+        </div>
+      </div>
 
-      <div class="hoja hoja-entrada">
-        <div class="pestanas" role="tablist" aria-label="Cómo quieres enviar el texto">
-          <button class="tab active" data-tab="pegar" role="tab">Pegar texto</button>
-          <button class="tab" data-tab="archivo" role="tab">Subir archivo</button>
+      <div class="wrap entrada-in">
+        <div class="hoja hoja-entrada">
+          <div class="pestanas" role="tablist" aria-label="Cómo quieres enviar el texto">
+            <button class="tab active" data-tab="pegar" role="tab">Pegar texto</button>
+            <button class="tab" data-tab="archivo" role="tab">Subir archivo</button>
+          </div>
+
+          <div class="panel" id="panel-pegar">
+            <textarea id="texto" aria-label="Texto a analizar"
+              placeholder="Pega aquí tu ensayo, capítulo o informe. Mínimo 80 palabras; con 250 o más el resultado es más fiable."></textarea>
+            <p class="contador"><span id="contador">0 palabras</span></p>
+          </div>
+
+          <div class="panel hidden" id="panel-archivo">
+            <label class="drop" id="drop">
+              <input type="file" id="archivo" accept=".pdf,.docx,.txt,.md">
+              <span class="drop-icono" aria-hidden="true"></span>
+              <span id="drop-text">Arrastra un PDF, DOCX o TXT aquí, o haz clic para elegirlo (máx. 10 MB)</span>
+            </label>
+          </div>
         </div>
 
-        <div class="panel" id="panel-pegar">
-          <textarea id="texto" aria-label="Texto a analizar"
-            placeholder="Pega aquí tu ensayo, capítulo o informe. Mínimo 80 palabras; con 250 o más el resultado es más fiable."></textarea>
-          <p class="contador"><span id="contador">0 palabras</span></p>
-        </div>
-
-        <div class="panel hidden" id="panel-archivo">
-          <label class="drop" id="drop">
-            <input type="file" id="archivo" accept=".pdf,.docx,.txt,.md">
-            <span class="drop-icono" aria-hidden="true"></span>
-            <span id="drop-text">Arrastra un PDF, DOCX o TXT aquí, o haz clic para elegirlo (máx. 10 MB)</span>
+        <div class="opciones">
+          <label class="opcion">
+            <input type="checkbox" id="modo-local">
+            <span><strong>Analizar en mi navegador.</strong> El texto no sale de tu equipo. La primera vez
+              descarga los modelos (~1 GB). Solo con texto pegado.</span>
+          </label>
+          <label class="opcion" id="similitud-opcion">
+            <input type="checkbox" id="buscar-fuentes">
+            <span><strong>Buscar coincidencias en fuentes abiertas.</strong> Compara con resúmenes de OpenAlex y
+              artículos de Wikipedia. Solo se envían palabras clave, no tu texto.</span>
           </label>
         </div>
-      </div>
 
-      <div class="opciones">
-        <label class="opcion">
-          <input type="checkbox" id="modo-local">
-          <span><strong>Analizar en mi navegador.</strong> El texto no sale de tu equipo. La primera vez
-            descarga los modelos (~1 GB). Solo con texto pegado.</span>
-        </label>
-        <label class="opcion" id="similitud-opcion">
-          <input type="checkbox" id="buscar-fuentes">
-          <span><strong>Buscar coincidencias en fuentes abiertas.</strong> Compara con resúmenes de OpenAlex y
-            artículos de Wikipedia. Solo se envían palabras clave, no tu texto.</span>
-        </label>
+        <button class="boton boton-principal boton-grande" id="analizar">Analizar texto</button>
+        <p class="error hidden" id="error" role="alert"></p>
       </div>
-
-      <button class="boton boton-tinta" id="analizar">Analizar texto</button>
-      <p class="error hidden" id="error" role="alert"></p>
     </section>
 
     <section class="hidden" id="cargando" aria-live="polite">
-      <div class="trazo" aria-hidden="true"></div>
+      <div class="trazos" aria-hidden="true"><span></span><span></span><span></span></div>
       <p id="cargando-texto">Analizando… puede tardar unos segundos.</p>
     </section>
 
-    <section class="hidden" id="resultado">
+    <section class="hidden wrap" id="resultado">
       <div class="informe-cabecera print-only">
         <h2>Informe de IAdección</h2>
         <p id="informe-datos"></p>
@@ -73,15 +88,16 @@
 
       <div class="mesa">
         <aside class="margen" aria-label="Resultado">
-          <h2 id="veredicto" class="veredicto"></h2>
-          <p class="probabilidad"><strong id="porcentaje">0%</strong> de probabilidad de que sea IA</p>
-
-          <div class="escala" aria-hidden="true">
-            <div class="escala-barra">
-              <span class="zona zona-humano"></span><span class="zona zona-incierto"></span><span class="zona zona-ia"></span>
-              <span class="escala-marca" id="escala-marca"></span>
+          <div class="veredicto-tarjeta" id="veredicto-tarjeta">
+            <p class="probabilidad"><strong id="porcentaje">0%</strong><span>de probabilidad de que sea IA</span></p>
+            <h2 id="veredicto" class="veredicto"></h2>
+            <div class="escala" aria-hidden="true">
+              <div class="escala-barra">
+                <span class="zona zona-humano"></span><span class="zona zona-incierto"></span><span class="zona zona-ia"></span>
+                <span class="escala-marca" id="escala-marca"></span>
+              </div>
+              <div class="escala-rotulos"><span>Humano</span><span>Incierto</span><span>IA</span></div>
             </div>
-            <div class="escala-rotulos"><span>Humano</span><span>Incierto</span><span>IA</span></div>
           </div>
 
           <dl class="datos">
@@ -98,8 +114,8 @@
           </div>
 
           <div class="acciones no-print">
-            <button class="boton boton-tinta" id="informe">Descargar informe (PDF)</button>
-            <button class="boton boton-papel" id="otra">Analizar otro texto</button>
+            <button class="boton boton-principal" id="informe">Descargar informe (PDF)</button>
+            <button class="boton boton-secundario" id="otra">Analizar otro texto</button>
           </div>
         </aside>
 
@@ -121,8 +137,8 @@
         <p class="nota">Reescríbelos con tu propia voz y vuelve a analizar el texto completo.</p>
         <div id="parrafos-marcados"></div>
         <div class="acciones">
-          <button class="boton boton-tinta" id="reanalizar">Reanalizar con mis cambios</button>
-          <button class="boton boton-papel" id="copiar">Copiar texto con mis cambios</button>
+          <button class="boton boton-principal" id="reanalizar">Reanalizar con mis cambios</button>
+          <button class="boton boton-secundario" id="copiar">Copiar texto con mis cambios</button>
         </div>
         <p class="error hidden" id="error-reescritura" role="alert"></p>
       </section>
@@ -141,9 +157,11 @@
     </section>
   </main>
 
-  <footer class="wrap pie">
-    <p>Herramienta orientativa y de código abierto. Ningún detector de IA es infalible: úsala para revisar
-      tu escritura, no como prueba contra nadie.</p>
+  <footer class="pie">
+    <div class="wrap">
+      <p>Herramienta orientativa y de código abierto. Ningún detector de IA es infalible: úsala para revisar
+        tu escritura, no como prueba contra nadie.</p>
+    </div>
   </footer>
 
   <script src="/static/app.js"></script>
