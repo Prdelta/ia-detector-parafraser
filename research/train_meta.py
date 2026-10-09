@@ -9,7 +9,8 @@ Las métricas se estiman con validación cruzada agrupada por tema (``source_id`
 humano y sus versiones de IA nunca quedan repartidos entre entrenamiento y evaluación.
 
 Uso:  python research/train_meta.py [--autext-n 1500] [--folds 5]
-Salida: models/meta.json y caché de rasgos en data/meta_features.parquet
+Salida: models/meta.json y caché de rasgos en data/meta_features_<clasificador>.parquet
+(IADECCION_CLASIFICADOR_DIR e IADECCION_META permiten evaluar otro clasificador sin tocar el actual)
 """
 
 import argparse
@@ -35,7 +36,6 @@ from backend.app.detectors.calibration import load as load_calibration  # noqa: 
 from backend.app.detectors.classifier import Classifier  # noqa: E402
 from backend.app.segment import normalize, split_sentences  # noqa: E402
 
-CACHE = ROOT / "data" / "meta_features.parquet"
 
 
 def tpr_at_fpr(labels, probs, target_fpr=0.01):
@@ -93,6 +93,7 @@ def main():
 
     det_id = f"{config.OBSERVER_MODEL}|{config.PERFORMER_MODEL}"
     clf_id = config.CLASSIFIER_DIR.name
+    CACHE = ROOT / "data" / f"meta_features_{clf_id}.parquet"
     if CACHE.exists() and not args.recompute:
         feats = pd.read_parquet(CACHE)
         print(f"Rasgos leídos de {CACHE} ({len(feats)} textos)")

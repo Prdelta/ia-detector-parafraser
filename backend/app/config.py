@@ -18,11 +18,11 @@ ENABLE_BINOCULARS = os.getenv("IADECCION_BINOCULARS", "1") == "1"
 
 # Clasificador supervisado (research/train_classifier.py); "0" lo desactiva.
 ENABLE_CLASSIFIER = os.getenv("IADECCION_CLASIFICADOR", "1") == "1"
-CLASSIFIER_DIR = MODELS_DIR / "clasificador"
+CLASSIFIER_DIR = Path(os.getenv("IADECCION_CLASIFICADOR_DIR", MODELS_DIR / "clasificador"))
 CLASSIFIER_MAX_TOKENS = 384  # igual que en el entrenamiento
 
 # Pesos aprendidos para combinar las señales (research/train_meta.py).
-META_FILE = MODELS_DIR / "meta.json"
+META_FILE = Path(os.getenv("IADECCION_META", MODELS_DIR / "meta.json"))
 
 # Modelo para la paráfrasis automática opcional; vacío o "0" la desactiva.
 PARAPHRASE_MODEL = os.getenv("IADECCION_PARAFRASEADOR", "Qwen/Qwen2.5-1.5B-Instruct")

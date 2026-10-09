@@ -202,6 +202,10 @@ Por tarea, en el corpus propio (meta ajustado: 0.2 % de humanos marcados):
   más paráfrasis (780 frente a ~55), que son lo más difícil; no son comparables directamente.
 - Coeficientes estandarizados: Binoculars −1.24, clasificador 1.25, estilo 0.44.
 - La versión 1 (clasificador y meta) está guardada en `data/clasificador_v1` y `data/meta_v1.json`.
+- Experimento descartado ("v3", `research/pipeline_clasificador_v3.sh`): suavizado de etiquetas y elegir
+  el mejor punto con validación. Quitó la saturación extrema, pero el meta quedó igual (paráfrasis:
+  AUROC 0.875 frente a 0.887; marcada 14 % frente a 12 %) y el clasificador generalizó peor a
+  AuTexTification (0.765 frente a 0.898). Se guarda en `data/clasificador_v3`.
 
 ### Modo navegador
 
