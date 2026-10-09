@@ -1,0 +1,9 @@
+Fuentes incluidas (subconjunto latino, WOFF2), servidas desde la propia aplicación para no
+depender de servicios externos:
+
+- Literata (TypeTogether, para Google) — SIL Open Font License 1.1
+  https://github.com/googlefonts/literata
+- Instrument Sans (Instrument) — SIL Open Font License 1.1
+  https://github.com/Instrument/instrument-sans
+
+Texto de la licencia: https://openfontlicense.org/open-font-license-official-text/

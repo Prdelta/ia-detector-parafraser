@@ -129,7 +129,7 @@ $("informe").addEventListener("click", () => {
     ultimo.archivo ? `Archivo: ${ultimo.archivo}` : null,
     analisisLocal ? "Análisis en el navegador (Binoculars y estilometría)" : "Análisis en el servidor",
   ];
-  $("informe-datos").textContent = datos.filter(Boolean).join(" · ");
+  $("informe-datos").textContent = datos.filter(Boolean).join(". ") + ".";
   const titulo = document.title;
   document.title = `Informe IAdeccion ${ahora.toISOString().slice(0, 10)}`;  // nombre del PDF
   window.print();
@@ -143,7 +143,6 @@ $("otra").addEventListener("click", () => {
 });
 
 const pct = (x) => `${Math.round(x * 100)}%`;
-const color = (p) => (p < 0.35 ? "var(--low)" : p < 0.65 ? "var(--mid)" : "var(--high)");
 
 function escapar(t) {
   const d = document.createElement("div");
@@ -171,7 +170,8 @@ function textoConCambios() {
 }
 
 function pintarParrafos(d) {
-  const marcados = d.parrafos.filter((p) => p.nivel !== "bajo");
+  // Los títulos (menos de 8 palabras) no se proponen para reescribir.
+  const marcados = d.parrafos.filter((p) => p.nivel !== "bajo" && contarPalabras(p.texto) >= 8);
   $("parrafos-marcados").innerHTML = marcados.length
     ? marcados
         .map(
@@ -188,7 +188,7 @@ function pintarParrafos(d) {
             ? `<details class="parafrasis">
                  <summary>Parafrasear automáticamente con IA</summary>
                  <p class="aviso-ia">El resultado seguirá siendo texto generado por IA aunque el detector ya no lo marque. Revisa las normas de tu institución antes de usarlo.</p>
-                 <button class="secondary" data-parafrasear="${p.indice}">Generar paráfrasis</button>
+                 <button class="boton boton-papel" data-parafrasear="${p.indice}">Generar paráfrasis</button>
                  <div class="resultado-ia" id="parafrasis-${p.indice}"></div>
                </details>`
             : ""
@@ -226,7 +226,7 @@ $("parrafos-marcados").addEventListener("click", async (e) => {
     caja.dataset.texto = data.texto;
     caja.innerHTML = `<blockquote>${escapar(data.texto)}</blockquote>
       <p class="aviso-ia">${escapar(data.aviso)}</p>
-      <button class="secondary" data-usar="${i}">Usar esta versión en el editor</button>`;
+      <button class="boton boton-papel" data-usar="${i}">Usar esta versión en el editor</button>`;
   } catch (err) {
     caja.innerHTML = `<p class="error">${escapar(err.message)}</p>`;
   } finally {
@@ -268,9 +268,10 @@ function pintar(d) {
   $("resultado").classList.remove("hidden");
 
   $("porcentaje").textContent = pct(d.probabilidad_ia);
-  const bar = $("gauge-bar");
-  bar.style.stroke = color(d.probabilidad_ia);
-  requestAnimationFrame(() => (bar.style.strokeDashoffset = 326.7 * (1 - d.probabilidad_ia)));
+  // La marca se desliza sobre la escala humano / incierto / IA (umbrales 35 % y 65 %).
+  const marca = $("escala-marca");
+  marca.style.left = "0%";
+  requestAnimationFrame(() => requestAnimationFrame(() => (marca.style.left = `${d.probabilidad_ia * 100}%`)));
   $("veredicto").textContent = d.veredicto;
   $("confianza").textContent = d.confianza;
   $("fraccion").textContent = pct(d.fraccion_texto_marcado);
