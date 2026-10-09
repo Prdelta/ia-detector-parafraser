@@ -80,6 +80,27 @@ def test_extraer_docx():
         extract_text("a.exe", b"x")
 
 
+def test_docx_con_citas_de_zotero_y_sin_bibliografia():
+    from docx.oxml import parse_xml
+    from docx.oxml.ns import nsdecls
+
+    d = docx.Document()
+    p = d.add_paragraph()
+    # Cita insertada por un gestor de referencias: un control de contenido (w:sdt) dentro del párrafo.
+    p._p.append(parse_xml(
+        f'<w:sdt {nsdecls("w")}><w:sdtContent><w:r><w:t>(Kratzert et al., 2019)</w:t></w:r>'
+        '</w:sdtContent></w:sdt>'))
+    p.add_run(", en Estados Unidos, entrenaron una red LSTM.")
+    d.add_paragraph("Kratzert, F., Klotz, D., y Nearing, G. (2019). Towards learning universal hydrological "
+                    "behaviors. Hydrology and Earth System Sciences, 23, 5089-5110.")
+    tabla = d.add_table(rows=1, cols=1)
+    tabla.cell(0, 0).text = "celda de tabla"
+    buf = io.BytesIO()
+    d.save(buf)
+    assert extract_text("a.docx", buf.getvalue()) == (
+        "(Kratzert et al., 2019), en Estados Unidos, entrenaron una red LSTM.")
+
+
 def test_api():
     with TestClient(app) as client:
         assert client.get("/api/salud").json()["estado"] == "ok"
@@ -161,3 +182,35 @@ def test_motivo_del_clasificador_solo_si_el_resultado_es_ia(monkeypatch):
     assert r["probabilidad_ia"] < 0.65
     assert not any("clasificador entrenado" in m for m in r["motivos"])
     assert any("Binoculars" in a for a in r["avisos"])
+
+
+class _BinocularsFalso:
+    """Puntuación por palabra: las de la lista ``ia`` parecen IA (0.6) y el resto, humanas (1.2)."""
+    model_id = "falso"
+
+    def __init__(self, ia):
+        self.ia = ia
+
+    def token_stats(self, text):
+        import re
+
+        import numpy as np
+
+        from backend.app.detectors.binoculars import TokenStats
+
+        spans = [m.span() for m in re.finditer(r"\w+", text)]
+        ppl = np.array([0.6 if text[a:b] in self.ia else 1.2 for a, b in spans])
+        return TokenStats(offsets=np.array(spans), ppl=ppl, xppl=np.ones(len(spans)))
+
+
+def test_titulos_no_se_marcan_por_encima_del_documento(monkeypatch):
+    from backend.app import analyzer
+
+    ia = " ".join(f"palabraia{i}" for i in range(35))
+    texto = "Objetivo general\n\n" + ia + ".\n\n" + HUMANO + "\n\n" + HUMANO + "\n\n" + HUMANO
+    monkeypatch.setattr(analyzer.binoculars, "get_detector", lambda: _BinocularsFalso(set(ia.split())))
+    r = analyze_text(texto)
+    assert r["probabilidad_ia"] < 0.35
+    titulo, parrafo_ia = r["oraciones"][0], r["oraciones"][1]
+    assert titulo["texto"] == "Objetivo general" and titulo["nivel"] == "bajo"
+    assert parrafo_ia["nivel"] == "alto"  # un párrafo largo sí puede marcarse aunque el documento no

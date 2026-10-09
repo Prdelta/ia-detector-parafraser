@@ -8,6 +8,7 @@ export const MAX_CHARS = 60000;
 const W_BINOCULARS = 0.8;
 const W_STYLE = 0.2;
 const MIN_SENTENCE_TOKENS = 30;
+const MIN_PARAGRAPH_WORDS = 8;
 const LEVELS = [[0.35, "bajo"], [0.65, "medio"], [1.01, "alto"]];
 
 // ---------- segmentación ----------
@@ -370,6 +371,12 @@ export function buildReport(rawText, text, sentences, stats, calib, modelId) {
   }
 
   const sentenceWords = sentences.map((s) => words(s.text).length);
+  // Títulos y rótulos no pueden puntuar más alto que el documento (como analyzer.py).
+  const paragraphWords = new Map();
+  sentences.forEach((s, i) => paragraphWords.set(s.paragraph, (paragraphWords.get(s.paragraph) || 0) + sentenceWords[i]));
+  sentences.forEach((s, i) => {
+    if (paragraphWords.get(s.paragraph) < MIN_PARAGRAPH_WORDS) sentenceProbs[i] = Math.min(sentenceProbs[i], docProb);
+  });
   let flaggedWords = 0, totalWords = 0;
   sentences.forEach((_, i) => {
     totalWords += sentenceWords[i];

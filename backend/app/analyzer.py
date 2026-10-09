@@ -14,6 +14,8 @@ W3_BINOCULARS, W3_CLASSIFIER, W3_STYLE = 0.5, 0.3, 0.2
 
 # Una oración con pocos tokens es ruidosa: se amplía con sus vecinas.
 MIN_SENTENCE_TOKENS = 30
+# Párrafos más cortos (títulos, rótulos) no se marcan por encima del documento.
+MIN_PARAGRAPH_WORDS = 8
 
 LEVELS = [(0.35, "bajo"), (0.65, "medio"), (1.01, "alto")]
 
@@ -116,6 +118,15 @@ def analyze_text(raw_text: str) -> dict:
         reasons.insert(0, "El clasificador entrenado reconoce rasgos de texto redactado o parafraseado con IA.")
 
     sentence_words = np.array([len(words(s.text)) for s in sentences])
+    # Títulos y rótulos ("Objetivo general", "Recursos") son cortos y predecibles por naturaleza:
+    # no aportan evidencia propia, así que no pueden puntuar más alto que el documento.
+    paragraph_words: dict[int, int] = {}
+    for s, n in zip(sentences, sentence_words):
+        paragraph_words[s.paragraph] = paragraph_words.get(s.paragraph, 0) + int(n)
+    for i, s in enumerate(sentences):
+        if paragraph_words[s.paragraph] < MIN_PARAGRAPH_WORDS:
+            sentence_probs[i] = min(sentence_probs[i], doc_prob)
+
     flagged = sentence_probs >= 0.65
     ai_fraction = float(sentence_words[flagged].sum() / max(sentence_words.sum(), 1))
 
