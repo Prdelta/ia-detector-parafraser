@@ -29,6 +29,9 @@ PARAPHRASE_MODEL = os.getenv("IADECCION_PARAFRASEADOR", "Qwen/Qwen2.5-1.5B-Instr
 if PARAPHRASE_MODEL == "0":
     PARAPHRASE_MODEL = ""
 MAX_PARAPHRASE_WORDS = 400
+# Dónde cargar el parafraseador: "auto" (GPU si quedan PARAPHRASE_MIN_FREE_GPU_GB libres), "cuda" o "cpu".
+PARAPHRASE_DEVICE = os.getenv("IADECCION_PARAFRASEADOR_DISPOSITIVO", "auto")
+PARAPHRASE_MIN_FREE_GPU_GB = 3.5
 
 # Búsqueda opcional de coincidencias en OpenAlex y Wikipedia (envía palabras clave); "0" la desactiva.
 ENABLE_SIMILARITY = os.getenv("IADECCION_SIMILITUD", "1") == "1"

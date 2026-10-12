@@ -63,7 +63,7 @@ class Paraphraser:
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
         self.torch = torch
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+        device = _choose_device(torch)
         dtype = torch.bfloat16 if device == "cuda" else torch.float32
         log.info("Cargando parafraseador %s en %s", self.model_name, device)
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
@@ -88,6 +88,21 @@ class Paraphraser:
         result = self.tokenizer.decode(out[0, enc["input_ids"].shape[1]:], skip_special_tokens=True)
         result = re.sub(r"^\s*(aquí tienes[^:\n]*:|párrafo reescrito\s*:)\s*", "", result.strip(), flags=re.I)
         return re.sub(r"\*\*", "", result).strip()
+
+
+def _choose_device(torch) -> str:
+    """GPU solo si queda memoria libre: con Binoculars y el clasificador ya cargados (o con otros
+    procesos usando la GPU), cargar aquí el parafraseador desbordaría a la RAM y frenaría el análisis."""
+    wanted = config.PARAPHRASE_DEVICE
+    if wanted in ("cpu", "cuda"):
+        return wanted if wanted == "cpu" or torch.cuda.is_available() else "cpu"
+    if not torch.cuda.is_available():
+        return "cpu"
+    free, _total = torch.cuda.mem_get_info()
+    if free >= config.PARAPHRASE_MIN_FREE_GPU_GB * 1024**3:
+        return "cuda"
+    log.info("Solo %.1f GB libres en la GPU: el parafraseador se carga en la CPU (más lento)", free / 1024**3)
+    return "cpu"
 
 
 _paraphraser: Paraphraser | None = None

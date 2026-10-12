@@ -55,6 +55,7 @@ Variables de entorno opcionales:
 | `IADECCION_BINOCULARS` | `1` | `0` = solo estilometría |
 | `IADECCION_CLASIFICADOR` | `1` | `0` desactiva el clasificador supervisado (`models/clasificador/`) |
 | `IADECCION_PARAFRASEADOR` | `Qwen/Qwen2.5-1.5B-Instruct` | Modelo de paráfrasis; `0` la desactiva |
+| `IADECCION_PARAFRASEADOR_DISPOSITIVO` | `auto` | `auto`: GPU si quedan ≥3.5 GB libres y, si no, CPU (~20 s por párrafo); `cuda` o `cpu` lo fuerzan |
 | `IADECCION_MAX_TOKENS` | `512` | Tamaño de fragmento para textos largos |
 | `IADECCION_SIMILITUD` | `1` | `0` desactiva la búsqueda en OpenAlex y Wikipedia |
 | `IADECCION_USER_AGENT` | URL del repositorio | User-Agent de esas consultas (Wikipedia exige un contacto) |
@@ -210,6 +211,11 @@ Por tarea, en el corpus propio:
 - Experimento descartado ("v3", `research/pipeline_clasificador_v3.sh`): suavizado de etiquetas y elegir
   el mejor punto con validación. Quitó la saturación extrema, pero no mejoró al meta y el clasificador
   generalizó peor a AuTexTification (0.765 frente a 0.898). Se guarda en `data/clasificador_v3`.
+- Experimento descartado (`research/exp_reescritura.py`, idea de Raidar): medir cuánto cambia un texto al
+  reescribirlo con Qwen2.5-0.5B-Instruct. Los humanos cambian un 26 % y las paráfrasis un 12 %; sola da
+  AUROC 0.79 en paráfrasis, pero está sesgada hacia su familia de modelos (0.88 con Qwen, 0.70 con
+  Salamandra). Añadida al meta sube el AUROC (0.904 → 0.913) y baja la detección con 1 % de falsos
+  positivos (0.500 → 0.457), y costaría ~45 s más por tesis. No se usa.
 
 ### Modo navegador
 
