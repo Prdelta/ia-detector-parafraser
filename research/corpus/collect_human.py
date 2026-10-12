@@ -19,7 +19,8 @@ from pathlib import Path
 import httpx
 
 OUT = Path(__file__).resolve().parents[2] / "data" / "corpus" / "human.jsonl"
-HEADERS = {"User-Agent": "IAdeccion-research/0.1 (detector educativo de texto IA; uso no comercial)"}
+# Wikipedia rechaza (403) los User-Agent sin forma de contacto.
+HEADERS = {"User-Agent": "IAdeccion-research/0.1 (https://github.com/Prdelta/ia-detector-parafraser)"}
 CUTOFF = "2021-12-31T23:59:59Z"
 
 _ES = set("de la que el en y a los se del las un por con no una su para es al lo como más pero sus le ya o este sí porque esta entre cuando muy sin sobre también fue había ha".split())

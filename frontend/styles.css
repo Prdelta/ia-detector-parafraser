@@ -350,6 +350,8 @@ pre { white-space: pre-wrap; word-break: break-word; font-size: 0.8rem; backgrou
 @media print {
   :root, :root[data-theme="dark"] {
     --fondo: #ffffff; --papel: #ffffff; --borde: #cfd4e2; --texto: #111111; --suave: #444444; --azul: #2340d8;
+    color-scheme: light;  /* si no, en modo oscuro los márgenes del PDF salen negros */
+    background: #ffffff;
   }
   @page { margin: 16mm; }
   body { font-size: 10.5pt; background: #fff; }
@@ -363,6 +365,7 @@ pre { white-space: pre-wrap; word-break: break-word; font-size: 0.8rem; backgrou
   .margen { position: static; margin-bottom: 16px; }
   .hoja-texto { padding: 14px 18px; }
   .parrafo, .margen { break-inside: avoid; }
+  h2, h3, .seccion > .nota { break-after: avoid; }
   .texto-marcado p { orphans: 3; widows: 3; }
   .informe-cabecera { border-bottom: 2px solid var(--texto); margin-bottom: 12px; }
   .informe-cabecera h2 { margin: 0; font-size: 1.4rem; }

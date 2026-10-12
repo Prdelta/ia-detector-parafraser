@@ -168,44 +168,48 @@ La regresión se entrena con clases equilibradas, así que después se desplaza 
 el umbral de la aplicación (0.65, "probablemente IA") no marque más del 1 % de los textos humanos
 fuera de muestra (`--fpr-objetivo 0.01`; `0` lo desactiva).
 
-#### Resultados (octubre 2026, versión 2 con paráfrasis)
+#### Resultados (octubre 2026, versión 4: paráfrasis con variantes)
 
-El clasificador se reentrenó añadiendo 1 001 paráfrasis de textos humanos generadas con Salamandra-2B,
-EuroLLM-1.7B y Qwen2.5-1.5B (`research/pipeline_parafrasis.sh`), con cuatro enunciados distintos
-("con tus propias palabras", "que no se note que está copiado", "mejora la redacción", "que suene humano").
-Clasificador XLM-R: AUROC 0.933 en el test del corpus propio y 0.912 en AuTexTification test (antes 0.848).
-Sus probabilidades siguen infladas (con p≥0.65 marca a más de la mitad de los humanos), por eso no se usa solo.
+El clasificador se entrena con 1 623 paráfrasis de textos humanos generadas con Salamandra-2B,
+EuroLLM-1.7B y Qwen2.5-1.5B en dos lotes:
 
-Meta-clasificador, validación cruzada agrupada por tema (2 333 textos: test del corpus propio, con
-780 paráfrasis, + 1 500 de AuTexTification test). Porcentajes con el umbral 0.65:
+- `research/pipeline_parafrasis.sh`: 1 001 paráfrasis con un único enunciado ("reescribe con tus propias
+  palabras"). Por un error, la lista de variantes no se usaba en este lote.
+- `research/pipeline_parafrasis_v2.sh`: 622 paráfrasis con cuatro enunciados repartidos al azar ("con tus
+  propias palabras", "que no se note que está copiado", "mejora la redacción", "que suene humano").
 
-| Método | AUROC | TPR @ 1 % FPR | Humanos marcados | IA marcada |
+Clasificador XLM-R: AUROC 0.926 en el test del corpus propio y 0.938 en AuTexTification test. Sus
+probabilidades siguen infladas (con p≥0.65 marca a más de la mitad de los humanos), por eso no se usa solo.
+
+Meta-clasificador, validación cruzada agrupada por tema (2 539 textos: test del corpus propio, con
+514 paráfrasis, + 1 500 de AuTexTification test). Porcentajes con el umbral 0.65. La versión anterior
+(v2) se reevaluó con el mismo conjunto para que la comparación sea justa:
+
+| Meta ajustado | AUROC | TPR @ 1 % FPR | Humanos marcados | IA marcada |
 |---|---|---|---|---|
-| Binoculars | 0.822 | 0.338 | 1.4 % | 36 % |
-| Pesos fijos | 0.850 | 0.330 | 6.3 % | 54 % |
-| Meta sin ajustar | 0.867 | 0.348 | 11.4 % | 66 % |
-| **Meta ajustado (en uso)** | **0.867** | **0.348** | **1.1 %** | **35 %** |
+| v2 (1 001 paráfrasis, un enunciado) | 0.848 | 0.320 | 1.1 % | 32 % |
+| **v4 (en uso)** | **0.868** | **0.336** | **1.1 %** | **34 %** |
 
-Por tarea, en el corpus propio (meta ajustado: 0.2 % de humanos marcados):
+Por tarea, en el corpus propio:
 
-| Tarea de la IA | AUROC | IA marcada (≥0.65) |
+| Tarea de la IA | AUROC v2 → v4 | IA marcada (≥0.65) v2 → v4 |
 |---|---|---|
-| Redactar | 0.998 | 78 % |
-| Humanizar | 0.999 | 77 % |
-| **Parafrasear** | **0.887** (antes 0.664) | **12 %** (antes 0 %) |
+| Redactar | 0.997 → 0.997 | 80 % → **85 %** |
+| Humanizar | 0.998 → 0.998 | 77 % → **85 %** |
+| **Parafrasear** | 0.876 → **0.886** | 16 % → **19 %** |
 
-- La paráfrasis ya se distingue (AUROC 0.89), pero con el umbral prudente de la aplicación solo se
-  marca el 12 %; el 30 % queda en la zona "incierta" y el 58 % pasa como humano. Sigue siendo el punto débil.
-- Las probabilidades del clasificador están saturadas (≥0.99 en el 70 % de los textos humanos), así que
-  no sirve como señal propia de paráfrasis: solo se cita como motivo cuando el resultado combinado es IA.
-- Las cifras globales bajan respecto a la versión 1 porque el conjunto de evaluación ahora tiene muchas
-  más paráfrasis (780 frente a ~55), que son lo más difícil; no son comparables directamente.
-- Coeficientes estandarizados: Binoculars −1.24, clasificador 1.25, estilo 0.44.
-- La versión 1 (clasificador y meta) está guardada en `data/clasificador_v1` y `data/meta_v1.json`.
+- Con v4, de las paráfrasis el 19 % se marca como IA, el 39 % queda en la zona "incierta" y el 41 %
+  pasa como humano (con v2: 12 %, 30 % y 58 %). Sigue siendo el punto débil, pero cada vez menos.
+- En el corpus académico, el meta ajustado v4 no marca como IA a ningún texto humano (0 de 472).
+  El 13 % de los humanos queda en la zona "incierta".
+- Las probabilidades del clasificador están saturadas, así que no sirve como señal propia de paráfrasis:
+  solo se cita como motivo cuando el resultado combinado es IA.
+- Coeficientes estandarizados: Binoculars −1.07, clasificador 1.36, estilo 0.51.
+- Versiones anteriores guardadas en `data/`: `clasificador_v1` y `meta_v1.json` (sin paráfrasis),
+  `clasificador_v2` y `meta_v2.json` (primer lote).
 - Experimento descartado ("v3", `research/pipeline_clasificador_v3.sh`): suavizado de etiquetas y elegir
-  el mejor punto con validación. Quitó la saturación extrema, pero el meta quedó igual (paráfrasis:
-  AUROC 0.875 frente a 0.887; marcada 14 % frente a 12 %) y el clasificador generalizó peor a
-  AuTexTification (0.765 frente a 0.898). Se guarda en `data/clasificador_v3`.
+  el mejor punto con validación. Quitó la saturación extrema, pero no mejoró al meta y el clasificador
+  generalizó peor a AuTexTification (0.765 frente a 0.898). Se guarda en `data/clasificador_v3`.
 
 ### Modo navegador
 
@@ -239,18 +243,21 @@ python research/audit_fp.py      # ~20 min en GPU; guarda models/auditoria_fp.js
 Todos los textos son humanos y anteriores a ChatGPT; se usa el análisis completo de la aplicación
 (meta-clasificador ajustado). "Marcado" = p≥0.65; "incierto o más" = p≥0.35.
 
+Con el clasificador v4 (en uso) y, entre paréntesis, con v2:
+
 | Grupo | n | Marcado como IA | Incierto o más | Prob. media |
 |---|---|---|---|---|
-| Hablante de herencia (COWS-L2H) | 200 | 0.0 % | 1.0 % | 0.12 |
-| Aprendiz de español L2 (COWS-L2H) | 200 | 0.0 % | 9.0 % | 0.14 |
-| Académico técnico | 185 | 0.0 % | 0.0 % | 0.05 |
-| Académico humanidades/sociales | 179 | 0.6 % | 2.8 % | 0.06 |
-| Wikipedia | 108 | 0.0 % | 0.0 % | 0.09 |
-| Texto corto (120 palabras) | 200 | 0.0 % | 5.5 % | 0.09 |
+| Hablante de herencia (COWS-L2H) | 200 | 0.0 % (0.0 %) | 8.5 % (1.0 %) | 0.19 |
+| Aprendiz de español L2 (COWS-L2H) | 200 | 0.0 % (0.0 %) | 15.5 % (9.0 %) | 0.20 |
+| Académico técnico | 185 | 0.0 % (0.0 %) | 4.3 % (0.0 %) | 0.08 |
+| Académico humanidades/sociales | 179 | 0.0 % (0.6 %) | 5.6 % (2.8 %) | 0.08 |
+| Wikipedia | 108 | 0.0 % (0.0 %) | 0.9 % (0.0 %) | 0.12 |
+| Texto corto (120 palabras) | 200 | 0.0 % (0.0 %) | 8.0 % (5.5 %) | 0.11 |
 
-- Ningún grupo supera el 1 % de acusaciones con el umbral de la aplicación.
-- Los aprendices de español L2 son el grupo que más cae en la zona "incierta" (9 %).
-  La interfaz debe seguir dejando claro que "incierto" no es una acusación.
+- Ningún texto humano de ningún grupo se marca como IA con el umbral de la aplicación.
+- A cambio de detectar más paráfrasis, v4 deja más textos humanos en la zona "incierta", sobre todo
+  de aprendices de español (15.5 %) y hablantes de herencia (8.5 %). "Incierto" no es una acusación,
+  y la interfaz debe seguir dejándolo claro.
 - Los textos de COWS-L2H no se usaron en ningún entrenamiento. Los académicos y Wikipedia salen del
   test del corpus propio, con el que se ajustó el meta-clasificador, así que sus cifras pueden ser
   algo optimistas.
@@ -289,6 +296,7 @@ python -m pytest tests -q
 - [x] Inferencia en el navegador (transformers.js) para coste cero y privacidad total
 - [x] Informe PDF descargable
 - [x] Módulo de similitud con fuentes abiertas (OpenAlex y Wikipedia)
-- [ ] Inglés: detección de idioma, estilometría y calibración propias (hecho, experimental); falta un
-  corpus propio en inglés y un clasificador multilingüe
-- [ ] Paráfrasis: más ejemplos de paráfrasis en el entrenamiento (`research/pipeline_parafrasis.sh`)
+- [x] Inglés experimental: detección de idioma, estilometría y calibración propias (sin corpus propio
+  ni clasificador en inglés, fuera del alcance por ahora)
+- [x] Paráfrasis: 1 623 paráfrasis en el entrenamiento, con cuatro variantes de enunciado
+  (`research/pipeline_parafrasis.sh` y `research/pipeline_parafrasis_v2.sh`)

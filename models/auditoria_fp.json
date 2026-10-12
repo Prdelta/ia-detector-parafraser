@@ -3,42 +3,42 @@
     "grupo": "Hablante de herencia",
     "n": 200,
     "marcado_ia_%": 0.0,
-    "incierto_o_mas_%": 1.0,
-    "prob_media": 0.123
+    "incierto_o_mas_%": 8.5,
+    "prob_media": 0.192
   },
   {
     "grupo": "L2 (aprendiz de español)",
     "n": 200,
     "marcado_ia_%": 0.0,
-    "incierto_o_mas_%": 9.0,
-    "prob_media": 0.14
+    "incierto_o_mas_%": 15.5,
+    "prob_media": 0.202
   },
   {
     "grupo": "Académico técnico",
     "n": 185,
     "marcado_ia_%": 0.0,
-    "incierto_o_mas_%": 0.0,
-    "prob_media": 0.054
+    "incierto_o_mas_%": 4.3,
+    "prob_media": 0.079
   },
   {
     "grupo": "Académico humanidades/sociales",
     "n": 179,
-    "marcado_ia_%": 0.6,
-    "incierto_o_mas_%": 2.8,
-    "prob_media": 0.06
+    "marcado_ia_%": 0.0,
+    "incierto_o_mas_%": 5.6,
+    "prob_media": 0.081
   },
   {
     "grupo": "Wikipedia",
     "n": 108,
     "marcado_ia_%": 0.0,
-    "incierto_o_mas_%": 0.0,
-    "prob_media": 0.09
+    "incierto_o_mas_%": 0.9,
+    "prob_media": 0.12
   },
   {
     "grupo": "Texto corto (120 palabras)",
     "n": 200,
     "marcado_ia_%": 0.0,
-    "incierto_o_mas_%": 5.5,
-    "prob_media": 0.092
+    "incierto_o_mas_%": 8.0,
+    "prob_media": 0.114
   }
 ]

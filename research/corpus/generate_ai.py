@@ -60,11 +60,7 @@ GENRES_ACADEMIC = [
 def build_prompt(item: dict, task: str, rng: random.Random) -> str:
     words = max(150, min(item["words"], 600))
     if task == "parafrasear":
-        return (
-            "Reescribe en castellano el siguiente texto con tus propias palabras, manteniendo todas las ideas "
-            f"y una extensión similar (unas {words} palabras). Responde solo con el texto reescrito.\n\n"
-            f"{item['text']}"
-        )
+        return rng.choice(PARAPHRASE_PROMPTS).format(words=words) + "\n\n" + item["text"]
     if item["domain"] == "academico":
         genre = rng.choice(GENRES_ACADEMIC)
         base = (f"Escribe en castellano {genre} titulado «{item['title']}» (área: {item['field']}). "
@@ -184,6 +180,8 @@ def main():
     parser.add_argument("--save-every", type=int, default=32)
     parser.add_argument("--tareas", nargs="+", choices=list(TASK_WEIGHTS),
                         help="generar solo estas tareas (se guardan en un archivo aparte)")
+    parser.add_argument("--sufijo", default="",
+                        help="lote nuevo en un archivo aparte, con otra muestra de textos humanos")
     args = parser.parse_args()
 
     human = [json.loads(l) for l in (CORPUS / "human.jsonl").open(encoding="utf-8")]
@@ -192,6 +190,8 @@ def main():
     weights = {t: w for t, w in TASK_WEIGHTS.items() if not args.tareas or t in args.tareas}
     if args.tareas:
         slug += "__" + "-".join(sorted(weights))
+    if args.sufijo:
+        slug += "__" + args.sufijo
     out_path = CORPUS / "ai" / f"{slug}.jsonl"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     rejected_path = CORPUS / "rechazados.jsonl"
