@@ -199,6 +199,8 @@ function pintarParrafos(d) {
     : "<p>No hay párrafos marcados como posible IA. 🎉</p>";
   $("reanalizar").classList.toggle("hidden", !marcados.length);
   $("copiar").classList.toggle("hidden", !marcados.length);
+  $("n-revisar").textContent = marcados.length;
+  $("ir-revisar").classList.toggle("hidden", !marcados.length);
 }
 
 $("parrafos-marcados").addEventListener("click", async (e) => {
@@ -281,6 +283,9 @@ function pintar(d) {
   marca.style.left = "0%";
   requestAnimationFrame(() => requestAnimationFrame(() => (marca.style.left = `${p * 100}%`)));
   $("veredicto").textContent = d.veredicto;
+  $("mini-veredicto").className = `mini-veredicto ${zona}`;
+  $("mini-porcentaje").textContent = pct(p);
+  $("mini-texto").textContent = d.veredicto;
   $("confianza").textContent = d.confianza;
   $("fraccion").textContent = pct(d.fraccion_texto_marcado);
   $("palabras").textContent = d.palabras.toLocaleString("es");
@@ -298,12 +303,14 @@ function pintar(d) {
     );
   }
   $("texto-marcado").innerHTML = parrafos.filter(Boolean).map((p) => `<p>${p.join(" ")}</p>`).join("");
+  $("texto-marcado").classList.remove("animar");  // el resaltado se anima al abrir su pestaña
 
   const motivos = d.motivos.length ? d.motivos : ["No se encontraron señales destacadas de IA."];
   $("motivos").innerHTML = motivos.map((m) => `<li>${escapar(m)}</li>`).join("");
   buscarFuentes(d);
   $("tecnico").textContent = JSON.stringify(d.senales, null, 2);
   $("legal").textContent = d.aviso_legal;
+  abrirPanel("t-resumen");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -311,7 +318,8 @@ function pintar(d) {
 
 async function buscarFuentes(d) {
   const activa = $("buscar-fuentes").checked && !analisisLocal;
-  $("similitud-card").classList.toggle("hidden", !activa);
+  $("t-fuentes").classList.toggle("hidden", !activa);
+  $("similitud-card").classList.toggle("no-print", !activa);  // sin búsqueda, no sale en el PDF
   if (!activa) return;
   const caja = $("similitud");
   caja.innerHTML = "<p class='nota'>Buscando en OpenAlex y Wikipedia…</p>";
@@ -369,3 +377,36 @@ function contar(el, objetivo) {
   };
   requestAnimationFrame(paso);
 }
+
+// ---------- paneles del resultado (pestañas accesibles con teclado) ----------
+
+const pestanas = () => [...document.querySelectorAll(".pr")].filter((t) => !t.classList.contains("hidden"));
+
+function abrirPanel(id, conFoco = false) {
+  for (const t of document.querySelectorAll(".pr")) {
+    const activa = t.id === id;
+    t.setAttribute("aria-selected", activa);
+    t.tabIndex = activa ? 0 : -1;
+    $(t.getAttribute("aria-controls")).classList.toggle("hidden", !activa);
+  }
+  if (conFoco) $(id).focus();
+  // El resaltado de las oraciones se "pinta" la primera vez que se ve el texto.
+  if (id === "t-texto") $("texto-marcado").classList.add("animar");
+  const barra = document.querySelector(".barra-resultado");
+  if (barra.getBoundingClientRect().top < 0) window.scrollTo({ top: $("resultado").offsetTop, behavior: "smooth" });
+}
+
+document.querySelector(".pestanas-resultado").addEventListener("click", (e) => {
+  const t = e.target.closest(".pr");
+  if (t) abrirPanel(t.id);
+});
+document.querySelector(".pestanas-resultado").addEventListener("keydown", (e) => {
+  const lista = pestanas();
+  const i = lista.indexOf(document.activeElement);
+  if (i < 0) return;
+  const destino = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: lista.length - 1 }[e.key];
+  if (destino === undefined) return;
+  e.preventDefault();
+  abrirPanel(lista[(destino + lista.length) % lista.length].id, true);
+});
+document.querySelectorAll("[data-ir]").forEach((b) => b.addEventListener("click", () => abrirPanel(b.dataset.ir, true)));

@@ -80,80 +80,109 @@
       <p id="cargando-texto">Analizando… puede tardar unos segundos.</p>
     </section>
 
-    <section class="hidden wrap" id="resultado">
-      <div class="informe-cabecera print-only">
+    <section class="hidden" id="resultado">
+      <div class="informe-cabecera print-only wrap">
         <h2>Informe de IAdección</h2>
         <p id="informe-datos"></p>
       </div>
 
-      <div class="mesa">
-        <aside class="margen" aria-label="Resultado">
-          <div class="veredicto-tarjeta" id="veredicto-tarjeta">
-            <p class="probabilidad"><strong id="porcentaje">0%</strong><span>de probabilidad de que sea IA</span></p>
-            <h2 id="veredicto" class="veredicto"></h2>
-            <div class="escala" aria-hidden="true">
-              <div class="escala-barra">
-                <span class="zona zona-humano"></span><span class="zona zona-incierto"></span><span class="zona zona-ia"></span>
-                <span class="escala-marca" id="escala-marca"></span>
-              </div>
-              <div class="escala-rotulos"><span>Humano</span><span>Incierto</span><span>IA</span></div>
-            </div>
+      <!-- Barra fija: el veredicto en pequeño, las pestañas y las acciones. -->
+      <div class="barra-resultado no-print">
+        <div class="wrap barra-in">
+          <p class="mini-veredicto" id="mini-veredicto"><strong id="mini-porcentaje">0%</strong><span id="mini-texto"></span></p>
+          <nav class="pestanas-resultado" role="tablist" aria-label="Partes del resultado">
+            <button class="pr" role="tab" id="t-resumen" aria-controls="p-resumen" aria-selected="true">Resumen</button>
+            <button class="pr" role="tab" id="t-texto" aria-controls="p-texto" aria-selected="false" tabindex="-1">Texto marcado</button>
+            <button class="pr" role="tab" id="t-revisar" aria-controls="p-revisar" aria-selected="false" tabindex="-1">Revisar párrafos <span class="contador-pr" id="n-revisar">0</span></button>
+            <button class="pr hidden" role="tab" id="t-fuentes" aria-controls="similitud-card" aria-selected="false" tabindex="-1">Coincidencias</button>
+            <button class="pr" role="tab" id="t-detalles" aria-controls="p-detalles" aria-selected="false" tabindex="-1">Detalles</button>
+          </nav>
+          <div class="barra-acciones">
+            <button class="boton boton-principal boton-chico" id="informe">Descargar PDF</button>
+            <button class="boton boton-secundario boton-chico" id="otra">Analizar otro</button>
           </div>
-
-          <dl class="datos">
-            <div><dt>Confianza</dt><dd id="confianza"></dd></div>
-            <div><dt>Texto marcado</dt><dd id="fraccion"></dd></div>
-            <div><dt>Palabras</dt><dd id="palabras"></dd></div>
-            <div><dt>Idioma</dt><dd id="idioma"></dd></div>
-          </dl>
-          <ul class="avisos" id="avisos"></ul>
-
-          <div id="motivos-card" class="motivos">
-            <h3>Por qué este resultado</h3>
-            <ul id="motivos"></ul>
-          </div>
-
-          <div class="acciones no-print">
-            <button class="boton boton-principal" id="informe">Descargar informe (PDF)</button>
-            <button class="boton boton-secundario" id="otra">Analizar otro texto</button>
-          </div>
-        </aside>
-
-        <article class="hoja hoja-texto">
-          <header class="hoja-cabecera">
-            <h2>Tu texto, marcado</h2>
-            <p class="leyenda">
-              <span class="muestra medio">posible IA</span>
-              <span class="muestra alto">muy probable IA</span>
-              <span class="pista">Pasa el cursor sobre una oración para ver su porcentaje.</span>
-            </p>
-          </header>
-          <div class="texto-marcado" id="texto-marcado"></div>
-        </article>
+        </div>
       </div>
 
-      <section class="seccion" id="reescritura">
-        <h2>Párrafos para revisar</h2>
-        <p class="nota">Reescríbelos con tu propia voz y vuelve a analizar el texto completo.</p>
-        <div id="parrafos-marcados"></div>
-        <div class="acciones">
-          <button class="boton boton-principal" id="reanalizar">Reanalizar con mis cambios</button>
-          <button class="boton boton-secundario" id="copiar">Copiar texto con mis cambios</button>
-        </div>
-        <p class="error hidden" id="error-reescritura" role="alert"></p>
-      </section>
+      <div class="wrap">
+        <!-- Resumen -->
+        <section class="panel-r" id="p-resumen" role="tabpanel" aria-labelledby="t-resumen">
+          <div class="resumen">
+            <div class="veredicto-tarjeta" id="veredicto-tarjeta">
+              <p class="probabilidad"><strong id="porcentaje">0%</strong><span>de probabilidad de que sea IA</span></p>
+              <h2 id="veredicto" class="veredicto"></h2>
+              <div class="escala" aria-hidden="true">
+                <div class="escala-barra">
+                  <span class="zona zona-humano"></span><span class="zona zona-incierto"></span><span class="zona zona-ia"></span>
+                  <span class="escala-marca" id="escala-marca"></span>
+                </div>
+                <div class="escala-rotulos"><span>Humano</span><span>Incierto</span><span>IA</span></div>
+              </div>
+            </div>
 
-      <section class="seccion hidden" id="similitud-card">
-        <h2>Coincidencias con fuentes abiertas</h2>
-        <div id="similitud"></div>
-      </section>
+            <div class="resumen-lado">
+              <dl class="datos">
+                <div><dt>Confianza</dt><dd id="confianza"></dd></div>
+                <div><dt>Texto marcado</dt><dd id="fraccion"></dd></div>
+                <div><dt>Palabras</dt><dd id="palabras"></dd></div>
+                <div><dt>Idioma</dt><dd id="idioma"></dd></div>
+              </dl>
+              <ul class="avisos" id="avisos"></ul>
+              <div id="motivos-card" class="motivos">
+                <h3>Por qué este resultado</h3>
+                <ul id="motivos"></ul>
+              </div>
+              <div class="siguientes no-print">
+                <button class="enlace-panel" data-ir="t-texto">Ver el texto marcado</button>
+                <button class="enlace-panel" data-ir="t-revisar" id="ir-revisar">Revisar los párrafos marcados</button>
+              </div>
+            </div>
+          </div>
+          <p class="legal" id="legal"></p>
+        </section>
 
-      <details class="tecnico no-print">
-        <summary>Datos técnicos del análisis</summary>
-        <pre id="tecnico"></pre>
-      </details>
+        <!-- Texto marcado -->
+        <section class="panel-r hidden" id="p-texto" role="tabpanel" aria-labelledby="t-texto">
+          <article class="hoja hoja-texto">
+            <header class="hoja-cabecera">
+              <h2>Tu texto, marcado</h2>
+              <p class="leyenda">
+                <span class="muestra medio">posible IA</span>
+                <span class="muestra alto">muy probable IA</span>
+                <span class="pista">Pasa el cursor sobre una oración para ver su porcentaje.</span>
+              </p>
+            </header>
+            <div class="texto-marcado" id="texto-marcado"></div>
+          </article>
+        </section>
 
-      <p class="legal" id="legal"></p>
+        <!-- Revisar párrafos -->
+        <section class="panel-r hidden seccion" id="p-revisar" role="tabpanel" aria-labelledby="t-revisar">
+          <div id="reescritura">
+            <h2>Párrafos para revisar</h2>
+            <p class="nota">Reescríbelos con tu propia voz y vuelve a analizar el texto completo.</p>
+            <div id="parrafos-marcados"></div>
+            <div class="acciones">
+              <button class="boton boton-principal" id="reanalizar">Reanalizar con mis cambios</button>
+              <button class="boton boton-secundario" id="copiar">Copiar texto con mis cambios</button>
+            </div>
+            <p class="error hidden" id="error-reescritura" role="alert"></p>
+          </div>
+        </section>
+
+        <!-- Coincidencias con fuentes abiertas (solo si se activó la búsqueda) -->
+        <section class="panel-r hidden seccion" id="similitud-card" role="tabpanel" aria-labelledby="t-fuentes">
+          <h2>Coincidencias con fuentes abiertas</h2>
+          <div id="similitud"></div>
+        </section>
+
+        <!-- Detalles técnicos -->
+        <section class="panel-r hidden seccion no-print" id="p-detalles" role="tabpanel" aria-labelledby="t-detalles">
+          <h2>Detalles técnicos del análisis</h2>
+          <p class="nota">Las señales que combina el detector, tal como las devuelve el análisis.</p>
+          <pre id="tecnico"></pre>
+        </section>
+      </div>
     </section>
   </main>
 
