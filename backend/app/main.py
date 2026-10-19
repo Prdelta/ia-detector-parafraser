@@ -91,10 +91,13 @@ async def paraphrase(body: TextIn):
 async def similar_sources(body: TextIn):
     if not config.ENABLE_SIMILARITY:
         raise HTTPException(status_code=503, detail="La búsqueda de coincidencias está desactivada en este servidor.")
-    if len(body.texto.split()) < config.MIN_WORDS or len(body.texto) > config.MAX_CHARS:
-        raise HTTPException(status_code=422, detail="El texto no tiene una extensión válida.")
+    # Como en el análisis, los textos muy largos se recortan en vez de rechazarse.
+    texto = body.texto[: config.MAX_CHARS]
+    if len(texto.split()) < config.MIN_WORDS:
+        raise HTTPException(status_code=422,
+                            detail=f"El texto es demasiado corto. Se necesitan al menos {config.MIN_WORDS} palabras.")
     # Solo salen del servidor palabras clave de cada párrafo, no el texto.
-    return await run_in_threadpool(similarity.check, body.texto, detect_language(body.texto))
+    return await run_in_threadpool(similarity.check, texto, detect_language(texto))
 
 
 @app.get("/")

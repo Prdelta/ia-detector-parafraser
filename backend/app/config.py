@@ -42,7 +42,7 @@ MAX_TOKENS_PER_CHUNK = int(os.getenv("IADECCION_MAX_TOKENS", "512"))
 # Límites de entrada.
 MIN_WORDS = 80
 RECOMMENDED_WORDS = 250
-MAX_CHARS = 60_000
+MAX_CHARS = 300_000  # unas 45 000 palabras: una tesis completa
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
 CALIBRATION_FILE = MODELS_DIR / "calibration.json"

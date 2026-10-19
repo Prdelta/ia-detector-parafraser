@@ -4,7 +4,7 @@
 
 export const MIN_WORDS = 80;
 export const RECOMMENDED_WORDS = 250;
-export const MAX_CHARS = 60000;
+export const MAX_CHARS = 300000;
 const W_BINOCULARS = 0.8;
 const W_STYLE = 0.2;
 const MIN_SENTENCE_TOKENS = 30;
