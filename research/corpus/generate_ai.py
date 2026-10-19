@@ -25,6 +25,7 @@ import os
 import random
 import re
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -151,15 +152,31 @@ class OpenAICompatible:
         import httpx
 
         key = os.environ.get("OPENAI_API_KEY", "")
-        self.client = httpx.Client(base_url=base_url.rstrip("/"), timeout=180,
+        self.client = httpx.Client(base_url=base_url.rstrip("/"), timeout=300,
                                    headers={"Authorization": f"Bearer {key}"} if key else {})
         self.model, self.workers = model, workers
 
-    def _one(self, prompt: str) -> str:
-        r = self.client.post("/chat/completions", json={
-            "model": self.model, "messages": [{"role": "user", "content": prompt}]})
-        r.raise_for_status()
-        return r.json()["choices"][0]["message"]["content"] or ""
+    def _one(self, prompt: str, tries: int = 6) -> str:
+        """Reintenta con espera exponencial ante límites de uso (429), errores 5xx y cortes de red,
+        habituales en las capas gratuitas. Si sigue fallando, devuelve "" (queda en rechazados)."""
+        import httpx
+
+        for attempt in range(tries):
+            try:
+                r = self.client.post("/chat/completions", json={
+                    "model": self.model, "messages": [{"role": "user", "content": prompt}]})
+                if r.status_code == 429 or r.status_code >= 500:
+                    raise httpx.HTTPStatusError(f"HTTP {r.status_code}", request=r.request, response=r)
+                r.raise_for_status()
+                return r.json()["choices"][0]["message"]["content"] or ""
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code not in (429, 500, 502, 503, 504):
+                    print(f"  error {exc.response.status_code}: {exc.response.text[:200]}", flush=True)
+                    return ""
+            except (httpx.TimeoutException, httpx.TransportError):
+                pass
+            time.sleep(min(20 * 2 ** attempt, 300))
+        return ""
 
     def generate(self, prompts, max_words):
         with ThreadPoolExecutor(self.workers) as pool:
